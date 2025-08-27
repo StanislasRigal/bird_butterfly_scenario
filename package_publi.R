@@ -1,0 +1,12 @@
+library(sf) # 1.0-19
+library(mgcv) # 1.8-39
+library(dplyr) # 1.1.4
+library(plyr) # 1.8.9
+library(purrr) # 1.0.4
+library(reshape) # 0.8.9
+library(ggplot2) # 3.5.1
+library(ggridges) # 0.5.6
+library(raster) # 3.6-31
+library(stars) # 0.6-8
+library(exactextractr) # 0.10.0
+library(BSDA) # 1.2.2

@@ -1,0 +1,1030 @@
+---
+title: "main_code"
+output: html_document
+author: "Stanislas Rigal"
+date: "2025-08-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+```
+
+### Loading R packages
+
+```{r}
+
+# Load packages and functions
+
+source("packages_publi.R")
+source("function_publi")
+
+```
+
+## Data
+
+### Geographical data
+
+```{r}
+
+# Biophysical regions
+grid_eu_mainland_biogeo <- st_read("raw_data/grid_eu_mainland_biogeo.gpkg")
+
+# Outline of the study area
+grid_eu_mainland_outline <- st_read("raw_data/grid_eu_mainland_outline.gpkg")
+
+```
+
+### Bird data
+
+The full dataset is available upon request at PECBMS https://pecbms.info/
+
+```{r}
+
+# subset with one species and 500 sites
+
+bird_data <- read.csv("raw_data/bird_data_publi.csv")
+pressure_publi <- read.csv("raw_data/pressure_publi.csv")
+
+```
+
+### Butterfly data
+
+The full dataset is available upon request at eBMS https://butterfly-monitoring.net
+
+```{r}
+
+# subset with one species and 500 transects
+
+butterfly_data <- read.csv("raw_data/butterfly_data_publi.csv")
+pressure_publi_butterfly <- read.csv("raw_data/pressure_publi_butterfly.csv")
+
+```
+
+
+## Analysis of past driver effects
+
+### Birds
+
+```{r}
+
+# Note that in this example there are enough data to compute estimate at the European level only
+
+res_gamm_bird_ex <- gam_bird_PLS(bird_data, pressure_data = pressure_publi)
+
+# Load results from all data
+
+res_gamm_bird <- read.csv("output/res_gamm_bird.csv")
+
+res_gamm_bird_correct <- res_gamm_bird[which(res_gamm_bird$dev_exp>0.15),]
+
+# Prepare data for plotting pressure effects
+
+farmland_species <- c("Alauda arvensis","Alectoris rufa","Anthus campestris","Anthus pratensis",
+"Bubulcus ibis","Burhinus oedicnemus","Calandrella brachydactyla","Ciconia ciconia",
+"Corvus frugilegus","Emberiza calandra","Emberiza cirlus","Emberiza citrinella",
+"Emberiza hortulana","Emberiza melanocephala","Falco tinnunculus","Galerida cristata",
+"Galerida theklae","Hirundo rustica","Lanius collurio","Lanius minor",
+"Lanius senator","Limosa limosa","Linaria cannabina","Melanocorypha calandra",
+"Motacilla flava","Oenanthe hispanica","Passer montanus","Perdix perdix",
+"Petronia petronia","Saxicola rubetra","Saxicola torquatus","Serinus serinus",
+"Streptopelia turtur","Sturnus unicolor","Sturnus vulgaris","Sylvia communis",
+"Tetrax tetrax","Upupa epops","Vanellus vanellus")
+
+forest_species <- c("Accipiter nisus","Anthus trivialis","Bombycilla garrulus",
+"Bonasa bonasia","Carduelis citrinella","Certhia brachydactyla",
+"Certhia familiaris","Coccothraustes coccothraustes","Columba oenas",
+"Cyanopica cooki","Leiopicus medius","Dryobates minor",
+"Dryocopus martius","Emberiza rustica","Ficedula albicollis",
+"Ficedula hypoleuca","Garrulus glandarius","Lophophanes cristatus",
+"Nucifraga caryocatactes","Periparus ater","Phoenicurus phoenicurus",
+"Phylloscopus bonelli","Phylloscopus collybita","Phylloscopus sibilatrix",
+"Picus canus","Poecile montanus","Poecile palustris",
+"Pyrrhula pyrrhula","Regulus ignicapilla","Regulus regulus",
+"Sitta europaea","Spinus spinus","Tringa ochropus", "Turdus viscivorus")
+
+# all species
+pressure_EU_bird <- res_gamm_bird_correct[which(res_gamm_bird_correct$PLS=="europe"),]
+
+# farmland species
+pressure_EU_bird <- res_gamm_bird_correct[which(res_gamm_bird_correct$PLS=="europe" & res_gamm_bird_correct$sci_name_out %in% farmland_species),]
+
+# forest species
+pressure_EU_bird <- res_gamm_bird_correct[which(res_gamm_bird_correct$PLS=="europe" & res_gamm_bird_correct$sci_name_out %in% forest_species),]
+
+pressure_EU_bird_long <- reshape::melt(pressure_EU_bird, id.vars=c("sci_name_out","PLS"))
+pressure_EU_bird_long <- pressure_EU_bird_long[which(!pressure_EU_bird_long$variable %in% c("(Intercept)","PLS","dev_exp","n_obs")),]
+
+
+pressure_EU_bird_long_d <- pressure_EU_bird_long[which(pressure_EU_bird_long$variable %in% c("year:d_impervious","year:d_tempsrping","year:d_tempsrpingvar","year:d_precspring",
+                                                                  "year:d_shannon","year:protectedarea_perc","year:d_treedensity","year:eulandsystem_forest_lowmedium","year:eulandsystem_forest_high",
+                                                                  "year:d_agri","year:eulandsystem_farmland_low","year:eulandsystem_farmland_medium",
+                                                                  "year:eulandsystem_farmland_high")),]
+
+pressure_EU_bird_long_d$variable <- factor(pressure_EU_bird_long_d$variable , levels = c("year:eulandsystem_farmland_high","year:eulandsystem_farmland_medium","year:eulandsystem_farmland_low","year:d_agri",
+                                                                                         "year:eulandsystem_forest_high","year:eulandsystem_forest_lowmedium","year:d_treedensity","year:protectedarea_perc","year:d_shannon",
+                                                                                         "year:d_impervious","year:d_precspring","year:d_tempsrpingvar","year:d_tempsrping"))
+
+ggplot(pressure_EU_bird_long_d, aes(x = value, y = variable, fill = variable)) +
+  scale_y_discrete(labels=c("year:d_impervious" = "Urbanisation (\u03B4Urb)","year:d_tempsrping" = "Temperature (\u03B4T)", "year:d_tempsrpingvar" = "Temperature variation (\u03B4Tva)", "year:d_precspring" = "Rainfall (\u03B4R)", "year:d_shannon" = "Landscape diversity (\u03B4H)",              
+                            "year:protectedarea_perc" = "Protected area (P)", "year:d_treedensity" = "Tree density (\u03B4TD)","year:eulandsystem_forest_lowmedium" = "Low/medium intensive forests (Folw)", "year:eulandsystem_forest_high" = "High intensive forests (Foh)",
+                            "year:d_agri" = "Agricultural surface (\u03B4Fa)","year:eulandsystem_farmland_low" = "Low intensive farmland (Fal)",
+                            "year:eulandsystem_farmland_medium" = "Medium intensive farmland (Fam)", "year:eulandsystem_farmland_high" = "High intensive farmland (Fah)")) + 
+  
+  geom_density_ridges(stat = "binline", col=NA,scale = 0.9,
+                      bins = 60, draw_baseline = FALSE) + xlim(c(-0.2,0.2))+
+  stat_density_ridges(quantile_lines = TRUE, alpha = 0.2, scale = 0.9,
+                       quantiles = 2) +
+  scale_fill_manual(values = c("year:d_impervious"="#33a02c","year:d_tempsrping"="#1f78b4","year:d_tempsrpingvar"="#1f78b4","year:d_precspring"="#1f78b4",
+                               "year:d_shannon"="#33a02c","year:protectedarea_perc"="#b2df8a","year:d_treedensity"="#33a02c","year:eulandsystem_forest_lowmedium"="#b2df8a","year:eulandsystem_forest_high"="#b2df8a",
+                               "year:d_agri"="#33a02c","year:eulandsystem_farmland_low"="#b2df8a","year:eulandsystem_farmland_medium"="#b2df8a",
+                               "year:eulandsystem_farmland_high"="#b2df8a")) +
+  theme_ridges() + geom_vline(aes(xintercept = 0), lty=2) +
+  theme(legend.position = "none", axis.title = element_blank())
+
+
+```
+
+### Butterfly
+
+```{r}
+
+# Note that in this example there are enough data to compute estimate at the European level only
+
+res_gamm_butterfly_ex <- gam_butterfly_PLS(butterfly_data, pressure_data = pressure_publi_butterfly)
+
+# Load results from all data
+
+res_gamm_butterfly <- read.csv("output/res_gamm_butterfly.csv")
+
+res_gamm_butterfly_correct <- res_gamm_butterfly[which(res_gamm_butterfly$dev_exp>0.15),]
+
+# Prepare data for plotting pressure effects
+
+
+grassland_species <- c("Lasiommata megera","Coenonympha pamphilus","Lycaena phlaeas","Ochlodes sylvanus",
+                       "Polyommatus icarus","Thymelicus acteon","Anthocharis cardamines","Cupido minimus",
+                       "Cyaniris semiargus","Erynnis tages","Lysandra bellargus","Lysandra coridon",
+                       "Maniola jurtina","Euphydryas aurinia","Phengaris arion","Phengaris nausithous",
+                       "Spialia sertorius")
+
+woodland_ind_species <- c("Apatura ilia","Apatura iris","Aporia crataegi","Araschnia levana",
+                          "Argynnis pandora","Argynnis paphia","Boloria euphrosyne",
+                          "Brintesia circe","Carterocephalus silvicola","Celastrina argiolus","Coenonympha arcania","Coenonympha hero",
+                          "Erebia aethiops","Erebia ligea",
+                          "Euphydryas maturna","Favonius quercus",
+                          "Gonepteryx rhamni","Hipparchia fagi","Hipparchia hermione",
+                          "Lasiommata maera","Lasiommata petropolitana","Libythea celtis",
+                          "Limenitis camilla","Limenitis populi","Limenitis reducta",
+                          "Nymphalis antiopa","Nymphalis polychloros",
+                          "Pararge aegeria","Polygonia c-album",
+                          "Satyrium acaciae","Satyrium ilicis","Satyrium w-album",
+                          "Thecla betulae")
+
+# all species
+pressure_EU_butterfly <- res_gamm_butterfly_correct[which(res_gamm_butterfly_correct$PLS=="europe"),]
+
+# grassland species
+pressure_EU_butterfly <- res_gamm_butterfly_correct[which(res_gamm_butterfly_correct$PLS=="europe" & res_gamm_butterfly_correct$species_name %in% grassland_species),]
+
+# woodland species
+pressure_EU_butterfly <- res_gamm_butterfly_correct[which(res_gamm_butterfly_correct$PLS=="europe" & res_gamm_butterfly_correct$species_name %in% woodland_ind_species),]
+
+
+pressure_EU_butterfly_long <- reshape::melt(pressure_EU_butterfly, id.vars=c("species_name","PLS"))
+pressure_EU_butterfly_long <- pressure_EU_butterfly_long[which(!pressure_EU_butterfly_long$variable %in% c("(Intercept)","PLS","dev_exp","n_obs")),]
+
+
+pressure_EU_butterfly_long_d <- pressure_EU_butterfly_long[which(pressure_EU_butterfly_long$variable %in% c("year:d_impervious","year:d_tempsrping","year:d_tempsrpingvar","year:d_precspring",
+                                                                                             "year:d_shannon","year:protectedarea_perc","year:d_treedensity","year:eulandsystem_forest_lowmedium","year:eulandsystem_forest_high",
+                                                                                             "year:d_agri","year:eulandsystem_farmland_low","year:eulandsystem_farmland_medium",
+                                                                                             "year:eulandsystem_farmland_high")),]
+
+pressure_EU_butterfly_long_d$variable <- factor(pressure_EU_butterfly_long_d$variable , levels = c("year:eulandsystem_farmland_high","year:eulandsystem_farmland_medium","year:eulandsystem_farmland_low","year:d_agri",
+                                                                                         "year:eulandsystem_forest_high","year:eulandsystem_forest_lowmedium","year:d_treedensity","year:protectedarea_perc","year:d_shannon",
+                                                                                         "year:d_impervious","year:d_precspring","year:d_tempsrpingvar","year:d_tempsrping"))
+
+ggplot(pressure_EU_butterfly_long_d, aes(x = value, y = variable, fill = variable)) +
+  scale_y_discrete(labels=c("year:d_impervious" = "D urbanisation on trend","year:d_tempsrping" = "D temperature on trend", "year:d_tempsrpingvar" = "D temperature variation on trend", "year:d_precspring" = "D precipitation on trend", "year:d_shannon" = "D landscape diversity on trend",              
+                            "year:protectedarea_perc" = "Protected area percentage on trend", "year:d_treedensity" = "D tree density on trend","year:eulandsystem_forest_lowmedium" = "Low/medium intensive forests on trend", "year:eulandsystem_forest_high" = "High intensive forests on trend",
+                            "year:d_agri" = "D agricultural surface on trend","year:eulandsystem_farmland_low" = "Low intensive farmland on trend",
+                            "year:eulandsystem_farmland_medium" = "Medium intensive farmland on trend", "year:eulandsystem_farmland_high" = "High intensive farmland on trend")) + 
+  geom_density_ridges(stat = "binline", col=NA,scale = 0.9,
+                      bins = 60, draw_baseline = FALSE) + xlim(c(-1,1))+
+  stat_density_ridges(quantile_lines = TRUE, alpha = 0.2, scale = 0.9,
+                      quantiles = 2) +
+  scale_fill_manual(values = c("year:d_impervious"="#33a02c","year:d_tempsrping"="#1f78b4","year:d_tempsrpingvar"="#1f78b4","year:d_precspring"="#1f78b4",
+                               "year:d_shannon"="#33a02c","year:protectedarea_perc"="#b2df8a","year:d_treedensity"="#33a02c","year:eulandsystem_forest_lowmedium"="#b2df8a","year:eulandsystem_forest_high"="#b2df8a",
+                               "year:d_agri"="#33a02c","year:eulandsystem_farmland_low"="#b2df8a","year:eulandsystem_farmland_medium"="#b2df8a",
+                               "year:eulandsystem_farmland_high"="#b2df8a")) +
+  theme_ridges() + geom_vline(aes(xintercept = 0), lty=2) +
+  theme(legend.position = "none", axis.title = element_blank())
+
+```
+
+
+## Translating scenarios in pressure changes
+
+### Land-use and land-use intensity
+
+```{r}
+
+# download prediction maps from https://dataverse.nl/dataset.xhtml?persistentId=doi:10.34894/NWGCBY and add it to raw_data folder before
+
+lulc_2015 <- rast(raster("raw_data/ssp1_cov0_eu_updated.tif"),crs="EPSG:3035")
+lulc_ssp1 <- rast(raster("raw_data/SSP1_Europe.tif"),crs="EPSG:3035")
+lulc_ssp3 <- rast(raster("raw_data/SSP3_Europe.tif"),crs="EPSG:3035")
+lulc_nac <- rast(raster("raw_data/nac_2050_eu.tif"),crs="EPSG:3035")
+lulc_nfn <- rast(raster("raw_data/nfn_2050_eu.tif"),crs="EPSG:3035")
+lulc_nfs <- rast(raster("raw_data/nfs_2050_eu.tif"),crs="EPSG:3035")
+
+### control compare to https://doi.org/10.1016/j.gloenvcha.2023.102766
+
+lulc_eu_2015 <- exact_extract(lulc_2015,grid_eu_mainland_outline, fun="frac",default_value=0)
+lulc_eu_ssp1 <- exact_extract(lulc_ssp1,grid_eu_mainland_outline, fun="frac",default_value=0)
+lulc_eu_ssp3 <- exact_extract(lulc_ssp3,grid_eu_mainland_outline, fun="frac",default_value=0)
+lulc_eu_nac <- exact_extract(lulc_nac,grid_eu_mainland_outline, fun="frac",default_value=30)
+lulc_eu_nfn <- exact_extract(lulc_nfn,grid_eu_mainland_outline, fun="frac",default_value=30)
+lulc_eu_nfs <- exact_extract(lulc_nfs,grid_eu_mainland_outline, fun="frac",default_value=30)
+
+lulc_eu_2015$urban <- lulc_eu_2015$frac_1 + lulc_eu_2015$frac_2 + lulc_eu_2015$frac_3
+lulc_eu_2015$farmland_low <- lulc_eu_2015$frac_4 + lulc_eu_2015$frac_9 + lulc_eu_2015$frac_12 + lulc_eu_2015$frac_17
+lulc_eu_2015$farmland_medium <- lulc_eu_2015$frac_10 + lulc_eu_2015$frac_13 + lulc_eu_2015$frac_18
+lulc_eu_2015$farmland_high <- lulc_eu_2015$frac_5 + lulc_eu_2015$frac_11 + lulc_eu_2015$frac_14 + lulc_eu_2015$frac_19
+lulc_eu_2015$forest_lowmedium <- lulc_eu_2015$frac_6 + lulc_eu_2015$frac_7
+lulc_eu_2015$forest_high <- lulc_eu_2015$frac_8
+lulc_eu_2015$landscape_div <- lulc_eu_2015$frac_15 + lulc_eu_2015$frac_16 + lulc_eu_2015$frac_17 + lulc_eu_2015$frac_18 + lulc_eu_2015$frac_19
+lulc_eu_2015 <- lulc_eu_2015[,c("urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_eu_2015$scenario <- "initial"
+
+lulc_eu_ssp1$urban <- lulc_eu_ssp1$frac_1 + lulc_eu_ssp1$frac_2 + lulc_eu_ssp1$frac_3
+lulc_eu_ssp1$farmland_low <- lulc_eu_ssp1$frac_4 + lulc_eu_ssp1$frac_9 + lulc_eu_ssp1$frac_12 + lulc_eu_ssp1$frac_17
+lulc_eu_ssp1$farmland_medium <- lulc_eu_ssp1$frac_10 + lulc_eu_ssp1$frac_13 + lulc_eu_ssp1$frac_18
+lulc_eu_ssp1$farmland_high <- lulc_eu_ssp1$frac_5 + lulc_eu_ssp1$frac_11 + lulc_eu_ssp1$frac_14 + lulc_eu_ssp1$frac_19
+lulc_eu_ssp1$forest_lowmedium <- lulc_eu_ssp1$frac_6 + lulc_eu_ssp1$frac_7
+lulc_eu_ssp1$forest_high <- lulc_eu_ssp1$frac_8
+lulc_eu_ssp1$landscape_div <- lulc_eu_ssp1$frac_15 + lulc_eu_ssp1$frac_16 + lulc_eu_ssp1$frac_17 + lulc_eu_ssp1$frac_18 + lulc_eu_ssp1$frac_19
+lulc_eu_ssp1 <- lulc_eu_ssp1[,c("urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_eu_ssp1$scenario <- "ssp1"
+
+lulc_eu_ssp3$urban <- lulc_eu_ssp3$frac_1 + lulc_eu_ssp3$frac_2 + lulc_eu_ssp3$frac_3
+lulc_eu_ssp3$farmland_low <- lulc_eu_ssp3$frac_4 + lulc_eu_ssp3$frac_9 + lulc_eu_ssp3$frac_12 + lulc_eu_ssp3$frac_17
+lulc_eu_ssp3$farmland_medium <- lulc_eu_ssp3$frac_10 + lulc_eu_ssp3$frac_13 + lulc_eu_ssp3$frac_18
+lulc_eu_ssp3$farmland_high <- lulc_eu_ssp3$frac_5 + lulc_eu_ssp3$frac_11 + lulc_eu_ssp3$frac_14 + lulc_eu_ssp3$frac_19
+lulc_eu_ssp3$forest_lowmedium <- lulc_eu_ssp3$frac_6 + lulc_eu_ssp3$frac_7
+lulc_eu_ssp3$forest_high <- lulc_eu_ssp3$frac_8
+lulc_eu_ssp3$landscape_div <- lulc_eu_ssp3$frac_15 + lulc_eu_ssp3$frac_16 + lulc_eu_ssp3$frac_17 + lulc_eu_ssp3$frac_18 + lulc_eu_ssp3$frac_19
+lulc_eu_ssp3 <- lulc_eu_ssp3[,c("urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_eu_ssp3$scenario <- "ssp3"
+
+lulc_eu_nac$urban <- lulc_eu_nac$frac_0 + lulc_eu_nac$frac_1 + lulc_eu_nac$frac_2
+lulc_eu_nac$farmland_low <- lulc_eu_nac$frac_3 + lulc_eu_nac$frac_8 + lulc_eu_nac$frac_11 + lulc_eu_nac$frac_16
+lulc_eu_nac$farmland_medium <- lulc_eu_nac$frac_9 + lulc_eu_nac$frac_12 + lulc_eu_nac$frac_17
+lulc_eu_nac$farmland_high <- lulc_eu_nac$frac_4 + lulc_eu_nac$frac_10 + lulc_eu_nac$frac_13 + lulc_eu_nac$frac_18
+lulc_eu_nac$forest_lowmedium <- lulc_eu_nac$frac_5 + lulc_eu_nac$frac_6
+lulc_eu_nac$forest_high <- lulc_eu_nac$frac_7
+lulc_eu_nac$landscape_div <- lulc_eu_nac$frac_14 + lulc_eu_nac$frac_15 + lulc_eu_nac$frac_16 + lulc_eu_nac$frac_17 + lulc_eu_nac$frac_18
+lulc_eu_nac <- lulc_eu_nac[,c("urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_eu_nac$scenario <- "nac"
+
+lulc_eu_nfn$urban <- lulc_eu_nfn$frac_0 + lulc_eu_nfn$frac_1 + lulc_eu_nfn$frac_2
+lulc_eu_nfn$farmland_low <- lulc_eu_nfn$frac_3 + lulc_eu_nfn$frac_8 + lulc_eu_nfn$frac_11 + lulc_eu_nfn$frac_16
+lulc_eu_nfn$farmland_medium <- lulc_eu_nfn$frac_9 + lulc_eu_nfn$frac_12 + lulc_eu_nfn$frac_17
+lulc_eu_nfn$farmland_high <- lulc_eu_nfn$frac_4 + lulc_eu_nfn$frac_10 + lulc_eu_nfn$frac_13 + lulc_eu_nfn$frac_18
+lulc_eu_nfn$forest_lowmedium <- lulc_eu_nfn$frac_5 + lulc_eu_nfn$frac_6
+lulc_eu_nfn$forest_high <- lulc_eu_nfn$frac_7
+lulc_eu_nfn$landscape_div <- lulc_eu_nfn$frac_14 + lulc_eu_nfn$frac_15 + lulc_eu_nfn$frac_16 + lulc_eu_nfn$frac_17 + lulc_eu_nfn$frac_18
+lulc_eu_nfn <- lulc_eu_nfn[,c("urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_eu_nfn$scenario <- "nfn"
+
+lulc_eu_nfs$urban <- lulc_eu_nfs$frac_0 + lulc_eu_nfs$frac_1 + lulc_eu_nfs$frac_2
+lulc_eu_nfs$farmland_low <- lulc_eu_nfs$frac_3 + lulc_eu_nfs$frac_8 + lulc_eu_nfs$frac_11 + lulc_eu_nfs$frac_16
+lulc_eu_nfs$farmland_medium <- lulc_eu_nfs$frac_9 + lulc_eu_nfs$frac_12 + lulc_eu_nfs$frac_17
+lulc_eu_nfs$farmland_high <- lulc_eu_nfs$frac_4 + lulc_eu_nfs$frac_10 + lulc_eu_nfs$frac_13 + lulc_eu_nfs$frac_18
+lulc_eu_nfs$forest_lowmedium <- lulc_eu_nfs$frac_5 + lulc_eu_nfs$frac_6
+lulc_eu_nfs$forest_high <- lulc_eu_nfs$frac_7
+lulc_eu_nfs$landscape_div <- lulc_eu_nfs$frac_14 + lulc_eu_nfs$frac_15 + lulc_eu_nfs$frac_16 + lulc_eu_nfs$frac_17 + lulc_eu_nfs$frac_18
+lulc_eu_nfs <- lulc_eu_nfs[,c("urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_eu_nfs$scenario <- "nfs"
+
+lulc_eu <- rbind(lulc_eu_2015,lulc_eu_ssp1,lulc_eu_ssp3,lulc_eu_nac,lulc_eu_nfn,lulc_eu_nfs)
+
+### apply to PLS
+
+lulc_pls_2015 <- exact_extract(lulc_2015,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="frac",default_value=0)
+lulc_pls_ssp1 <- exact_extract(lulc_ssp1,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="frac",default_value=0)
+lulc_pls_ssp3 <- exact_extract(lulc_ssp3,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="frac",default_value=0)
+lulc_pls_nac <- exact_extract(lulc_nac,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="frac",default_value=30)
+lulc_pls_nfn <- exact_extract(lulc_nfn,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="frac",default_value=0)
+lulc_pls_nfs <- exact_extract(lulc_nfs,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="frac",default_value=0)
+
+lulc_pls_2015$urban <- lulc_pls_2015$frac_2 + lulc_pls_2015$frac_3
+lulc_pls_2015$farmland_low <- lulc_pls_2015$frac_4 + lulc_pls_2015$frac_9 + lulc_pls_2015$frac_12 + lulc_pls_2015$frac_17
+lulc_pls_2015$farmland_medium <- lulc_pls_2015$frac_10 + lulc_pls_2015$frac_13 + lulc_pls_2015$frac_18
+lulc_pls_2015$farmland_high <- lulc_pls_2015$frac_5 + lulc_pls_2015$frac_11 + lulc_pls_2015$frac_14 + lulc_pls_2015$frac_19
+lulc_pls_2015$forest_lowmedium <- lulc_pls_2015$frac_6 + lulc_pls_2015$frac_7
+lulc_pls_2015$forest_high <- lulc_pls_2015$frac_8
+lulc_pls_2015$landscape_div <- lulc_pls_2015$frac_15 + lulc_pls_2015$frac_16 + lulc_pls_2015$frac_17 + lulc_pls_2015$frac_18 + lulc_pls_2015$frac_19
+lulc_pls_2015$PLS <- c(1:19,21:25)
+
+
+lulc_pls_2015 <- lulc_pls_2015[,c("PLS","urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_pls_2015 <- rbind(lulc_pls_2015,data.frame(PLS="europe",lulc_eu_2015[,1:7]))
+lulc_pls_2015 <- reshape2::melt(lulc_pls_2015,id.vars="PLS")
+lulc_pls_2015$scenario <- "initial"
+
+lulc_pls_ssp1$urban <- lulc_pls_ssp1$frac_2 + lulc_pls_ssp1$frac_3
+lulc_pls_ssp1$farmland_low <- lulc_pls_ssp1$frac_4 + lulc_pls_ssp1$frac_9 + lulc_pls_ssp1$frac_12 + lulc_pls_ssp1$frac_17
+lulc_pls_ssp1$farmland_medium <- lulc_pls_ssp1$frac_10 + lulc_pls_ssp1$frac_13 + lulc_pls_ssp1$frac_18
+lulc_pls_ssp1$farmland_high <- lulc_pls_ssp1$frac_5 + lulc_pls_ssp1$frac_11 + lulc_pls_ssp1$frac_14 + lulc_pls_ssp1$frac_19
+lulc_pls_ssp1$forest_lowmedium <- lulc_pls_ssp1$frac_6 + lulc_pls_ssp1$frac_7
+lulc_pls_ssp1$forest_high <- lulc_pls_ssp1$frac_8
+lulc_pls_ssp1$landscape_div <- lulc_pls_ssp1$frac_15 + lulc_pls_ssp1$frac_16 + lulc_pls_ssp1$frac_17 + lulc_pls_ssp1$frac_18 + lulc_pls_ssp1$frac_19
+lulc_pls_ssp1$PLS <- c(1:19,21:25)
+lulc_pls_ssp1 <- lulc_pls_ssp1[,c("PLS","urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_pls_ssp1 <- rbind(lulc_pls_ssp1,data.frame(PLS="europe",lulc_eu_ssp1[,1:7]))
+lulc_pls_ssp1 <- reshape2::melt(lulc_pls_ssp1,id.vars="PLS")
+lulc_pls_ssp1$scenario <- "ssp1"
+
+lulc_pls_ssp3$urban <- lulc_pls_ssp3$frac_2 + lulc_pls_ssp3$frac_3
+lulc_pls_ssp3$farmland_low <- lulc_pls_ssp3$frac_4 + lulc_pls_ssp3$frac_9 + lulc_pls_ssp3$frac_12 + lulc_pls_ssp3$frac_17
+lulc_pls_ssp3$farmland_medium <- lulc_pls_ssp3$frac_10 + lulc_pls_ssp3$frac_13 + lulc_pls_ssp3$frac_18
+lulc_pls_ssp3$farmland_high <- lulc_pls_ssp3$frac_5 + lulc_pls_ssp3$frac_11 + lulc_pls_ssp3$frac_14 + lulc_pls_ssp3$frac_19
+lulc_pls_ssp3$forest_lowmedium <- lulc_pls_ssp3$frac_6 + lulc_pls_ssp3$frac_7
+lulc_pls_ssp3$forest_high <- lulc_pls_ssp3$frac_8
+lulc_pls_ssp3$landscape_div <- lulc_pls_ssp3$frac_15 + lulc_pls_ssp3$frac_16 + lulc_pls_ssp3$frac_17 + lulc_pls_ssp3$frac_18 + lulc_pls_ssp3$frac_19
+lulc_pls_ssp3$PLS <- c(1:19,21:25)
+lulc_pls_ssp3 <- lulc_pls_ssp3[,c("PLS","urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_pls_ssp3 <- rbind(lulc_pls_ssp3,data.frame(PLS="europe",lulc_eu_ssp3[,1:7]))
+lulc_pls_ssp3 <- reshape2::melt(lulc_pls_ssp3,id.vars="PLS")
+lulc_pls_ssp3$scenario <- "ssp3"
+
+lulc_pls_nac$urban <- lulc_pls_nac$frac_1 + lulc_pls_nac$frac_2
+lulc_pls_nac$farmland_low <- lulc_pls_nac$frac_3 + lulc_pls_nac$frac_8 + lulc_pls_nac$frac_11 + lulc_pls_nac$frac_16
+lulc_pls_nac$farmland_medium <- lulc_pls_nac$frac_9 + lulc_pls_nac$frac_12 + lulc_pls_nac$frac_17
+lulc_pls_nac$farmland_high <- lulc_pls_nac$frac_4 + lulc_pls_nac$frac_10 + lulc_pls_nac$frac_13 + lulc_pls_nac$frac_18
+lulc_pls_nac$forest_lowmedium <- lulc_pls_nac$frac_5 + lulc_pls_nac$frac_6
+lulc_pls_nac$forest_high <- lulc_pls_nac$frac_7
+lulc_pls_nac$landscape_div <- lulc_pls_nac$frac_14 + lulc_pls_nac$frac_15 + lulc_pls_nac$frac_16 + lulc_pls_nac$frac_17 + lulc_pls_nac$frac_18
+lulc_pls_nac$PLS <- c(1:19,21:25)
+lulc_pls_nac <- lulc_pls_nac[,c("PLS","urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_pls_nac <- rbind(lulc_pls_nac,data.frame(PLS="europe",lulc_eu_nac[,1:7]))
+lulc_pls_nac <- reshape2::melt(lulc_pls_nac,id.vars="PLS")
+lulc_pls_nac$scenario <- "nac"
+
+lulc_pls_nfn$urban <- lulc_pls_nfn$frac_1 + lulc_pls_nfn$frac_2
+lulc_pls_nfn$farmland_low <- lulc_pls_nfn$frac_3 + lulc_pls_nfn$frac_8 + lulc_pls_nfn$frac_11 + lulc_pls_nfn$frac_16
+lulc_pls_nfn$farmland_medium <- lulc_pls_nfn$frac_9 + lulc_pls_nfn$frac_12 + lulc_pls_nfn$frac_17
+lulc_pls_nfn$farmland_high <- lulc_pls_nfn$frac_4 + lulc_pls_nfn$frac_10 + lulc_pls_nfn$frac_13 + lulc_pls_nfn$frac_18
+lulc_pls_nfn$forest_lowmedium <- lulc_pls_nfn$frac_5 + lulc_pls_nfn$frac_6
+lulc_pls_nfn$forest_high <- lulc_pls_nfn$frac_7
+lulc_pls_nfn$landscape_div <- lulc_pls_nfn$frac_14 + lulc_pls_nfn$frac_15 + lulc_pls_nfn$frac_16 + lulc_pls_nfn$frac_17 + lulc_pls_nfn$frac_18
+lulc_pls_nfn$PLS <- c(1:19,21:25)
+lulc_pls_nfn <- lulc_pls_nfn[,c("PLS","urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_pls_nfn <- rbind(lulc_pls_nfn,data.frame(PLS="europe",lulc_eu_nfn[,1:7]))
+lulc_pls_nfn <- reshape2::melt(lulc_pls_nfn,id.vars="PLS")
+lulc_pls_nfn$scenario <- "nfn"
+
+lulc_pls_nfs$urban <- lulc_pls_nfs$frac_1 + lulc_pls_nfs$frac_2
+lulc_pls_nfs$farmland_low <- lulc_pls_nfs$frac_3 + lulc_pls_nfs$frac_8 + lulc_pls_nfs$frac_11 + lulc_pls_nfs$frac_16
+lulc_pls_nfs$farmland_medium <- lulc_pls_nfs$frac_9 + lulc_pls_nfs$frac_12 + lulc_pls_nfs$frac_17
+lulc_pls_nfs$farmland_high <- lulc_pls_nfs$frac_4 + lulc_pls_nfs$frac_10 + lulc_pls_nfs$frac_13 + lulc_pls_nfs$frac_18
+lulc_pls_nfs$forest_lowmedium <- lulc_pls_nfs$frac_5 + lulc_pls_nfs$frac_6
+lulc_pls_nfs$forest_high <- lulc_pls_nfs$frac_7
+lulc_pls_nfs$landscape_div <- lulc_pls_nfs$frac_14 + lulc_pls_nfs$frac_15 + lulc_pls_nfs$frac_16 + lulc_pls_nfs$frac_17 + lulc_pls_nfs$frac_18
+lulc_pls_nfs$PLS <- c(1:19,21:25)
+lulc_pls_nfs <- lulc_pls_nfs[,c("PLS","urban","farmland_low","farmland_medium","farmland_high","forest_lowmedium","forest_high","landscape_div")]
+lulc_pls_nfs <- rbind(lulc_pls_nfs,data.frame(PLS="europe",lulc_eu_nfs[,1:7]))
+lulc_pls_nfs <- reshape2::melt(lulc_pls_nfs,id.vars="PLS")
+lulc_pls_nfs$scenario <- "nfs"
+
+lulc_pls <- rbind(lulc_pls_2015,lulc_pls_ssp1,lulc_pls_ssp3,lulc_pls_nac,lulc_pls_nfn,lulc_pls_nfs)
+
+lulc_pls_short <- reshape2::dcast(lulc_pls, PLS + variable ~ scenario, value.var = "value")
+
+```
+
+### Protected area
+
+```{r}
+
+# download before change in protected areas from https://dataverse.nl/dataset.xhtml?persistentId=doi:10.34894/TCNKPJ
+
+pa_2050 <- rast(raster("raw_data/FIG2_3values_expand_top5.tif"))
+
+pa_pls <- exact_extract(pa_2050,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="frac")
+pa_pls_eu <- exact_extract(pa_2050,grid_eu_mainland_outline, fun="frac")
+pa_pls <- rbind(pa_pls,pa_pls_eu)
+pa_pls$nfn <- pa_pls$frac_1 + pa_pls$frac_2 + pa_pls$frac_3 + pa_pls$frac_7 + pa_pls$frac_8 + pa_pls$frac_12
+pa_pls$nac <- pa_pls$frac_1 + pa_pls$frac_2 + pa_pls$frac_4 + pa_pls$frac_7 + pa_pls$frac_9 + pa_pls$frac_12
+pa_pls$nfs <- pa_pls$frac_1 + pa_pls$frac_2 + pa_pls$frac_5 + pa_pls$frac_8 + pa_pls$frac_9 + pa_pls$frac_12
+pa_pls$initial <- pa_pls$frac_1 + pa_pls$frac_2
+pa_pls$PLS <- c(as.character(c(1:19,21:25)),"europe")
+
+pa_pls_short <- pa_pls[,c("PLS","nfn","nfs","nac","initial")]
+pa_pls_short$ssp1 <- pa_pls_short$ssp3 <- pa_pls_short$initial
+pa_pls_short <- reshape2::melt(pa_pls_short,id.vars="PLS")
+names(pa_pls_short)[2] <- "scenario"
+pa_pls_short$variable <- "protected area"
+pa_pls_short <- reshape2::dcast(pa_pls_short, PLS + variable ~ scenario, value.var = "value")
+
+```
+
+### Climate
+
+```{r}
+
+# download before change in climate https://cds.climate.copernicus.eu/
+
+### Temperature
+
+mean_t_4_5_cclm <- brick("raw_data/01_mean_temperature-projections-monthly-rcp_4_5-cclm4_8_17-mpi_esm_lr-r1i1p1-grid-v1.0.nc")
+mean_t_4_5_cclm_2016 <- (mean_t_4_5_cclm$X2016.03.01 + mean_t_4_5_cclm$X2016.04.01 + mean_t_4_5_cclm$X2016.05.01 + mean_t_4_5_cclm$X2016.06.01 +
+                           mean_t_4_5_cclm$X2017.03.01 + mean_t_4_5_cclm$X2017.04.01 + mean_t_4_5_cclm$X2017.05.01 + mean_t_4_5_cclm$X2017.06.01 +
+                           mean_t_4_5_cclm$X2018.03.01 + mean_t_4_5_cclm$X2018.04.01 + mean_t_4_5_cclm$X2018.05.01 + mean_t_4_5_cclm$X2018.06.01 +
+                           mean_t_4_5_cclm$X2019.03.01 + mean_t_4_5_cclm$X2019.04.01 + mean_t_4_5_cclm$X2019.05.01 + mean_t_4_5_cclm$X2019.06.01 +
+                           mean_t_4_5_cclm$X2020.03.01 + mean_t_4_5_cclm$X2020.04.01 + mean_t_4_5_cclm$X2020.05.01 + mean_t_4_5_cclm$X2020.06.01 +
+                           mean_t_4_5_cclm$X2021.03.01 + mean_t_4_5_cclm$X2021.04.01 + mean_t_4_5_cclm$X2021.05.01 + mean_t_4_5_cclm$X2021.06.01)/24
+mean_t_4_5_cclm <- (mean_t_4_5_cclm$X2050.03.01 + mean_t_4_5_cclm$X2050.04.01 + mean_t_4_5_cclm$X2050.05.01 + mean_t_4_5_cclm$X2050.06.01)/4
+mean_t_4_5_hirham <- brick("raw_data/01_mean_temperature-projections-monthly-rcp_4_5-hirham5-noresm1_m-r1i1p1-grid-v1.0.nc")
+mean_t_4_5_hirham_2016 <- (mean_t_4_5_hirham$X2016.03.01 + mean_t_4_5_hirham$X2016.04.01 + mean_t_4_5_hirham$X2016.05.01 + mean_t_4_5_hirham$X2016.06.01 +
+                           mean_t_4_5_hirham$X2017.03.01 + mean_t_4_5_hirham$X2017.04.01 + mean_t_4_5_hirham$X2017.05.01 + mean_t_4_5_hirham$X2017.06.01 +
+                           mean_t_4_5_hirham$X2018.03.01 + mean_t_4_5_hirham$X2018.04.01 + mean_t_4_5_hirham$X2018.05.01 + mean_t_4_5_hirham$X2018.06.01 +
+                           mean_t_4_5_hirham$X2019.03.01 + mean_t_4_5_hirham$X2019.04.01 + mean_t_4_5_hirham$X2019.05.01 + mean_t_4_5_hirham$X2019.06.01 +
+                           mean_t_4_5_hirham$X2020.03.01 + mean_t_4_5_hirham$X2020.04.01 + mean_t_4_5_hirham$X2020.05.01 + mean_t_4_5_hirham$X2020.06.01 +
+                           mean_t_4_5_hirham$X2021.03.01 + mean_t_4_5_hirham$X2021.04.01 + mean_t_4_5_hirham$X2021.05.01 + mean_t_4_5_hirham$X2021.06.01)/24
+mean_t_4_5_hirham <- (mean_t_4_5_hirham$X2050.03.01 + mean_t_4_5_hirham$X2050.04.01 + mean_t_4_5_hirham$X2050.05.01 + mean_t_4_5_hirham$X2050.06.01)/4
+mean_t_4_5_racmo_ecearth <- brick("raw_data/01_mean_temperature-projections-monthly-rcp_4_5-racmo22e-ec_earth-r1i1p1-grid-v1.0.nc")
+mean_t_4_5_racmo_ecearth_2016 <- (mean_t_4_5_racmo_ecearth$X2016.03.01 + mean_t_4_5_racmo_ecearth$X2016.04.01 + mean_t_4_5_racmo_ecearth$X2016.05.01 + mean_t_4_5_racmo_ecearth$X2016.06.01 +
+                           mean_t_4_5_racmo_ecearth$X2017.03.01 + mean_t_4_5_racmo_ecearth$X2017.04.01 + mean_t_4_5_racmo_ecearth$X2017.05.01 + mean_t_4_5_racmo_ecearth$X2017.06.01 +
+                           mean_t_4_5_racmo_ecearth$X2018.03.01 + mean_t_4_5_racmo_ecearth$X2018.04.01 + mean_t_4_5_racmo_ecearth$X2018.05.01 + mean_t_4_5_racmo_ecearth$X2018.06.01 +
+                           mean_t_4_5_racmo_ecearth$X2019.03.01 + mean_t_4_5_racmo_ecearth$X2019.04.01 + mean_t_4_5_racmo_ecearth$X2019.05.01 + mean_t_4_5_racmo_ecearth$X2019.06.01 +
+                           mean_t_4_5_racmo_ecearth$X2020.03.01 + mean_t_4_5_racmo_ecearth$X2020.04.01 + mean_t_4_5_racmo_ecearth$X2020.05.01 + mean_t_4_5_racmo_ecearth$X2020.06.01 +
+                           mean_t_4_5_racmo_ecearth$X2021.03.01 + mean_t_4_5_racmo_ecearth$X2021.04.01 + mean_t_4_5_racmo_ecearth$X2021.05.01 + mean_t_4_5_racmo_ecearth$X2021.06.01)/24
+mean_t_4_5_racmo_ecearth <- (mean_t_4_5_racmo_ecearth$X2050.03.01 + mean_t_4_5_racmo_ecearth$X2050.04.01 + mean_t_4_5_racmo_ecearth$X2050.05.01 + mean_t_4_5_racmo_ecearth$X2050.06.01)/4
+mean_t_4_5_racmo_hadgem <- brick("raw_data/01_mean_temperature-projections-monthly-rcp_4_5-racmo22e-hadgem2_es-r1i1p1-grid-v1.0.nc")
+mean_t_4_5_racmo_hadgem_2016 <- (mean_t_4_5_racmo_hadgem$X2016.03.01 + mean_t_4_5_racmo_hadgem$X2016.04.01 + mean_t_4_5_racmo_hadgem$X2016.05.01 + mean_t_4_5_racmo_hadgem$X2016.06.01 +
+                           mean_t_4_5_racmo_hadgem$X2017.03.01 + mean_t_4_5_racmo_hadgem$X2017.04.01 + mean_t_4_5_racmo_hadgem$X2017.05.01 + mean_t_4_5_racmo_hadgem$X2017.06.01 +
+                           mean_t_4_5_racmo_hadgem$X2018.03.01 + mean_t_4_5_racmo_hadgem$X2018.04.01 + mean_t_4_5_racmo_hadgem$X2018.05.01 + mean_t_4_5_racmo_hadgem$X2018.06.01 +
+                           mean_t_4_5_racmo_hadgem$X2019.03.01 + mean_t_4_5_racmo_hadgem$X2019.04.01 + mean_t_4_5_racmo_hadgem$X2019.05.01 + mean_t_4_5_racmo_hadgem$X2019.06.01 +
+                           mean_t_4_5_racmo_hadgem$X2020.03.01 + mean_t_4_5_racmo_hadgem$X2020.04.01 + mean_t_4_5_racmo_hadgem$X2020.05.01 + mean_t_4_5_racmo_hadgem$X2020.06.01 +
+                           mean_t_4_5_racmo_hadgem$X2021.03.01 + mean_t_4_5_racmo_hadgem$X2021.04.01 + mean_t_4_5_racmo_hadgem$X2021.05.01 + mean_t_4_5_racmo_hadgem$X2021.06.01)/24
+mean_t_4_5_racmo_hadgem <- (mean_t_4_5_racmo_hadgem$X2050.03.01 + mean_t_4_5_racmo_hadgem$X2050.04.01 + mean_t_4_5_racmo_hadgem$X2050.05.01 + mean_t_4_5_racmo_hadgem$X2050.06.01)/4
+mean_t_4_5_rca_hadgem <- brick("raw_data/01_mean_temperature-projections-monthly-rcp_4_5-rca4-hadgem2_es-r1i1p1-grid-v1.0.nc")
+mean_t_4_5_rca_hadgem_2016 <- (mean_t_4_5_rca_hadgem$X2016.03.01 + mean_t_4_5_rca_hadgem$X2016.04.01 + mean_t_4_5_rca_hadgem$X2016.05.01 + mean_t_4_5_rca_hadgem$X2016.06.01 +
+                           mean_t_4_5_rca_hadgem$X2017.03.01 + mean_t_4_5_rca_hadgem$X2017.04.01 + mean_t_4_5_rca_hadgem$X2017.05.01 + mean_t_4_5_rca_hadgem$X2017.06.01 +
+                           mean_t_4_5_rca_hadgem$X2018.03.01 + mean_t_4_5_rca_hadgem$X2018.04.01 + mean_t_4_5_rca_hadgem$X2018.05.01 + mean_t_4_5_rca_hadgem$X2018.06.01 +
+                           mean_t_4_5_rca_hadgem$X2019.03.01 + mean_t_4_5_rca_hadgem$X2019.04.01 + mean_t_4_5_rca_hadgem$X2019.05.01 + mean_t_4_5_rca_hadgem$X2019.06.01 +
+                           mean_t_4_5_rca_hadgem$X2020.03.01 + mean_t_4_5_rca_hadgem$X2020.04.01 + mean_t_4_5_rca_hadgem$X2020.05.01 + mean_t_4_5_rca_hadgem$X2020.06.01 +
+                           mean_t_4_5_rca_hadgem$X2021.03.01 + mean_t_4_5_rca_hadgem$X2021.04.01 + mean_t_4_5_rca_hadgem$X2021.05.01 + mean_t_4_5_rca_hadgem$X2021.06.01)/24
+mean_t_4_5_rca_hadgem <- (mean_t_4_5_rca_hadgem$X2050.03.01 + mean_t_4_5_rca_hadgem$X2050.04.01 + mean_t_4_5_rca_hadgem$X2050.05.01 + mean_t_4_5_rca_hadgem$X2050.06.01)/4
+mean_t_4_5_rca_mpi <- brick("raw_data/01_mean_temperature-projections-monthly-rcp_4_5-rca4-mpi_esm_lr-r1i1p1-grid-v1.0.nc")
+mean_t_4_5_rca_mpi_2016 <- (mean_t_4_5_rca_mpi$X2016.03.01 + mean_t_4_5_rca_mpi$X2016.04.01 + mean_t_4_5_rca_mpi$X2016.05.01 + mean_t_4_5_rca_mpi$X2016.06.01 +
+                           mean_t_4_5_rca_mpi$X2017.03.01 + mean_t_4_5_rca_mpi$X2017.04.01 + mean_t_4_5_rca_mpi$X2017.05.01 + mean_t_4_5_rca_mpi$X2017.06.01 +
+                           mean_t_4_5_rca_mpi$X2018.03.01 + mean_t_4_5_rca_mpi$X2018.04.01 + mean_t_4_5_rca_mpi$X2018.05.01 + mean_t_4_5_rca_mpi$X2018.06.01 +
+                           mean_t_4_5_rca_mpi$X2019.03.01 + mean_t_4_5_rca_mpi$X2019.04.01 + mean_t_4_5_rca_mpi$X2019.05.01 + mean_t_4_5_rca_mpi$X2019.06.01 +
+                           mean_t_4_5_rca_mpi$X2020.03.01 + mean_t_4_5_rca_mpi$X2020.04.01 + mean_t_4_5_rca_mpi$X2020.05.01 + mean_t_4_5_rca_mpi$X2020.06.01 +
+                           mean_t_4_5_rca_mpi$X2021.03.01 + mean_t_4_5_rca_mpi$X2021.04.01 + mean_t_4_5_rca_mpi$X2021.05.01 + mean_t_4_5_rca_mpi$X2021.06.01)/24
+mean_t_4_5_rca_mpi <- (mean_t_4_5_rca_mpi$X2050.03.01 + mean_t_4_5_rca_mpi$X2050.04.01 + mean_t_4_5_rca_mpi$X2050.05.01 + mean_t_4_5_rca_mpi$X2050.06.01)/4
+mean_t_4_5_wrf <- brick("raw_data/01_mean_temperature-projections-monthly-rcp_4_5-wrf381p-ipsl_cm5a_mr-r1i1p1-grid-v1.0.nc")
+mean_t_4_5_wrf_2016 <- (mean_t_4_5_wrf$X2016.03.01 + mean_t_4_5_wrf$X2016.04.01 + mean_t_4_5_wrf$X2016.05.01 + mean_t_4_5_wrf$X2016.06.01 +
+                           mean_t_4_5_wrf$X2017.03.01 + mean_t_4_5_wrf$X2017.04.01 + mean_t_4_5_wrf$X2017.05.01 + mean_t_4_5_wrf$X2017.06.01 +
+                           mean_t_4_5_wrf$X2018.03.01 + mean_t_4_5_wrf$X2018.04.01 + mean_t_4_5_wrf$X2018.05.01 + mean_t_4_5_wrf$X2018.06.01 +
+                           mean_t_4_5_wrf$X2019.03.01 + mean_t_4_5_wrf$X2019.04.01 + mean_t_4_5_wrf$X2019.05.01 + mean_t_4_5_wrf$X2019.06.01 +
+                           mean_t_4_5_wrf$X2020.03.01 + mean_t_4_5_wrf$X2020.04.01 + mean_t_4_5_wrf$X2020.05.01 + mean_t_4_5_wrf$X2020.06.01 +
+                           mean_t_4_5_wrf$X2021.03.01 + mean_t_4_5_wrf$X2021.04.01 + mean_t_4_5_wrf$X2021.05.01 + mean_t_4_5_wrf$X2021.06.01)/24
+mean_t_4_5_wrf <- (mean_t_4_5_wrf$X2050.03.01 + mean_t_4_5_wrf$X2050.04.01 + mean_t_4_5_wrf$X2050.05.01 + mean_t_4_5_wrf$X2050.06.01)/4
+
+mean_t_4_5 <- (mean_t_4_5_cclm + mean_t_4_5_hirham + mean_t_4_5_racmo_ecearth + mean_t_4_5_racmo_hadgem + mean_t_4_5_rca_hadgem + mean_t_4_5_rca_mpi + mean_t_4_5_wrf)/7 - 272.15
+mean_t_2016 <- (mean_t_4_5_cclm_2016 + mean_t_4_5_hirham_2016 + mean_t_4_5_racmo_ecearth_2016 + mean_t_4_5_racmo_hadgem_2016 + mean_t_4_5_rca_hadgem_2016 + mean_t_4_5_rca_mpi_2016 + mean_t_4_5_wrf_2016)/7 - 272.15
+
+
+### Precipitation
+
+sum_p_4_5_cclm <- brick("raw_data/12_total_precipitation-projections-monthly-rcp_4_5-cclm4_8_17-mpi_esm_lr-r1i1p1-grid-v1.0.nc")
+sum_p_4_5_cclm_2016 <- (sum_p_4_5_cclm$X2016.03.01 + sum_p_4_5_cclm$X2016.04.01 + sum_p_4_5_cclm$X2016.05.01 + sum_p_4_5_cclm$X2016.06.01 +
+                           sum_p_4_5_cclm$X2017.03.01 + sum_p_4_5_cclm$X2017.04.01 + sum_p_4_5_cclm$X2017.05.01 + sum_p_4_5_cclm$X2017.06.01 +
+                           sum_p_4_5_cclm$X2018.03.01 + sum_p_4_5_cclm$X2018.04.01 + sum_p_4_5_cclm$X2018.05.01 + sum_p_4_5_cclm$X2018.06.01 +
+                           sum_p_4_5_cclm$X2019.03.01 + sum_p_4_5_cclm$X2019.04.01 + sum_p_4_5_cclm$X2019.05.01 + sum_p_4_5_cclm$X2019.06.01 +
+                           sum_p_4_5_cclm$X2020.03.01 + sum_p_4_5_cclm$X2020.04.01 + sum_p_4_5_cclm$X2020.05.01 + sum_p_4_5_cclm$X2020.06.01 +
+                           sum_p_4_5_cclm$X2021.03.01 + sum_p_4_5_cclm$X2021.04.01 + sum_p_4_5_cclm$X2021.05.01 + sum_p_4_5_cclm$X2021.06.01)/6
+sum_p_4_5_cclm <- sum_p_4_5_cclm$X2050.03.01 + sum_p_4_5_cclm$X2050.04.01 + sum_p_4_5_cclm$X2050.05.01 + sum_p_4_5_cclm$X2050.06.01
+sum_p_4_5_hirham <- brick("raw_data/12_total_precipitation-projections-monthly-rcp_4_5-hirham5-noresm1_m-r1i1p1-grid-v1.0.nc")
+sum_p_4_5_hirham_2016 <- (sum_p_4_5_hirham$X2016.03.01 + sum_p_4_5_hirham$X2016.04.01 + sum_p_4_5_hirham$X2016.05.01 + sum_p_4_5_hirham$X2016.06.01 +
+                          sum_p_4_5_hirham$X2017.03.01 + sum_p_4_5_hirham$X2017.04.01 + sum_p_4_5_hirham$X2017.05.01 + sum_p_4_5_hirham$X2017.06.01 +
+                          sum_p_4_5_hirham$X2018.03.01 + sum_p_4_5_hirham$X2018.04.01 + sum_p_4_5_hirham$X2018.05.01 + sum_p_4_5_hirham$X2018.06.01 +
+                          sum_p_4_5_hirham$X2019.03.01 + sum_p_4_5_hirham$X2019.04.01 + sum_p_4_5_hirham$X2019.05.01 + sum_p_4_5_hirham$X2019.06.01 +
+                          sum_p_4_5_hirham$X2020.03.01 + sum_p_4_5_hirham$X2020.04.01 + sum_p_4_5_hirham$X2020.05.01 + sum_p_4_5_hirham$X2020.06.01 +
+                          sum_p_4_5_hirham$X2021.03.01 + sum_p_4_5_hirham$X2021.04.01 + sum_p_4_5_hirham$X2021.05.01 + sum_p_4_5_hirham$X2021.06.01)/6
+sum_p_4_5_hirham <- sum_p_4_5_hirham$X2050.03.01 + sum_p_4_5_hirham$X2050.04.01 + sum_p_4_5_hirham$X2050.05.01 + sum_p_4_5_hirham$X2050.06.01
+sum_p_4_5_racmo_ecearth <- brick("raw_data/12_total_precipitation-projections-monthly-rcp_4_5-racmo22e-ec_earth-r1i1p1-grid-v1.0.nc")
+sum_p_4_5_racmo_ecearth_2016 <- (sum_p_4_5_racmo_ecearth$X2016.03.01 + sum_p_4_5_racmo_ecearth$X2016.04.01 + sum_p_4_5_racmo_ecearth$X2016.05.01 + sum_p_4_5_racmo_ecearth$X2016.06.01 +
+                          sum_p_4_5_racmo_ecearth$X2017.03.01 + sum_p_4_5_racmo_ecearth$X2017.04.01 + sum_p_4_5_racmo_ecearth$X2017.05.01 + sum_p_4_5_racmo_ecearth$X2017.06.01 +
+                          sum_p_4_5_racmo_ecearth$X2018.03.01 + sum_p_4_5_racmo_ecearth$X2018.04.01 + sum_p_4_5_racmo_ecearth$X2018.05.01 + sum_p_4_5_racmo_ecearth$X2018.06.01 +
+                          sum_p_4_5_racmo_ecearth$X2019.03.01 + sum_p_4_5_racmo_ecearth$X2019.04.01 + sum_p_4_5_racmo_ecearth$X2019.05.01 + sum_p_4_5_racmo_ecearth$X2019.06.01 +
+                          sum_p_4_5_racmo_ecearth$X2020.03.01 + sum_p_4_5_racmo_ecearth$X2020.04.01 + sum_p_4_5_racmo_ecearth$X2020.05.01 + sum_p_4_5_racmo_ecearth$X2020.06.01 +
+                          sum_p_4_5_racmo_ecearth$X2021.03.01 + sum_p_4_5_racmo_ecearth$X2021.04.01 + sum_p_4_5_racmo_ecearth$X2021.05.01 + sum_p_4_5_racmo_ecearth$X2021.06.01)/6
+sum_p_4_5_racmo_ecearth <- sum_p_4_5_racmo_ecearth$X2050.03.01 + sum_p_4_5_racmo_ecearth$X2050.04.01 + sum_p_4_5_racmo_ecearth$X2050.05.01 + sum_p_4_5_racmo_ecearth$X2050.06.01
+sum_p_4_5_racmo_hadgem <- brick("raw_data/12_total_precipitation-projections-monthly-rcp_4_5-racmo22e-hadgem2_es-r1i1p1-grid-v1.0.nc")
+sum_p_4_5_racmo_hadgem_2016 <- (sum_p_4_5_racmo_hadgem$X2016.03.01 + sum_p_4_5_racmo_hadgem$X2016.04.01 + sum_p_4_5_racmo_hadgem$X2016.05.01 + sum_p_4_5_racmo_hadgem$X2016.06.01 +
+                          sum_p_4_5_racmo_hadgem$X2017.03.01 + sum_p_4_5_racmo_hadgem$X2017.04.01 + sum_p_4_5_racmo_hadgem$X2017.05.01 + sum_p_4_5_racmo_hadgem$X2017.06.01 +
+                          sum_p_4_5_racmo_hadgem$X2018.03.01 + sum_p_4_5_racmo_hadgem$X2018.04.01 + sum_p_4_5_racmo_hadgem$X2018.05.01 + sum_p_4_5_racmo_hadgem$X2018.06.01 +
+                          sum_p_4_5_racmo_hadgem$X2019.03.01 + sum_p_4_5_racmo_hadgem$X2019.04.01 + sum_p_4_5_racmo_hadgem$X2019.05.01 + sum_p_4_5_racmo_hadgem$X2019.06.01 +
+                          sum_p_4_5_racmo_hadgem$X2020.03.01 + sum_p_4_5_racmo_hadgem$X2020.04.01 + sum_p_4_5_racmo_hadgem$X2020.05.01 + sum_p_4_5_racmo_hadgem$X2020.06.01 +
+                          sum_p_4_5_racmo_hadgem$X2021.03.01 + sum_p_4_5_racmo_hadgem$X2021.04.01 + sum_p_4_5_racmo_hadgem$X2021.05.01 + sum_p_4_5_racmo_hadgem$X2021.06.01)/6
+sum_p_4_5_racmo_hadgem <- sum_p_4_5_racmo_hadgem$X2050.03.01 + sum_p_4_5_racmo_hadgem$X2050.04.01 + sum_p_4_5_racmo_hadgem$X2050.05.01 + sum_p_4_5_racmo_hadgem$X2050.06.01
+sum_p_4_5_rca_hadgem <- brick("raw_data/12_total_precipitation-projections-monthly-rcp_4_5-rca4-hadgem2_es-r1i1p1-grid-v1.0.nc")
+sum_p_4_5_rca_hadgem_2016 <- (sum_p_4_5_rca_hadgem$X2016.03.01 + sum_p_4_5_rca_hadgem$X2016.04.01 + sum_p_4_5_rca_hadgem$X2016.05.01 + sum_p_4_5_rca_hadgem$X2016.06.01 +
+                          sum_p_4_5_rca_hadgem$X2017.03.01 + sum_p_4_5_rca_hadgem$X2017.04.01 + sum_p_4_5_rca_hadgem$X2017.05.01 + sum_p_4_5_rca_hadgem$X2017.06.01 +
+                          sum_p_4_5_rca_hadgem$X2018.03.01 + sum_p_4_5_rca_hadgem$X2018.04.01 + sum_p_4_5_rca_hadgem$X2018.05.01 + sum_p_4_5_rca_hadgem$X2018.06.01 +
+                          sum_p_4_5_rca_hadgem$X2019.03.01 + sum_p_4_5_rca_hadgem$X2019.04.01 + sum_p_4_5_rca_hadgem$X2019.05.01 + sum_p_4_5_rca_hadgem$X2019.06.01 +
+                          sum_p_4_5_rca_hadgem$X2020.03.01 + sum_p_4_5_rca_hadgem$X2020.04.01 + sum_p_4_5_rca_hadgem$X2020.05.01 + sum_p_4_5_rca_hadgem$X2020.06.01 +
+                          sum_p_4_5_rca_hadgem$X2021.03.01 + sum_p_4_5_rca_hadgem$X2021.04.01 + sum_p_4_5_rca_hadgem$X2021.05.01 + sum_p_4_5_rca_hadgem$X2021.06.01)/6
+sum_p_4_5_rca_hadgem <- sum_p_4_5_rca_hadgem$X2050.03.01 + sum_p_4_5_rca_hadgem$X2050.04.01 + sum_p_4_5_rca_hadgem$X2050.05.01 + sum_p_4_5_rca_hadgem$X2050.06.01
+sum_p_4_5_rca_mpi <- brick("raw_data/12_total_precipitation-projections-monthly-rcp_4_5-rca4-mpi_esm_lr-r1i1p1-grid-v1.0.nc")
+sum_p_4_5_rca_mpi_2016 <- (sum_p_4_5_rca_mpi$X2016.03.01 + sum_p_4_5_rca_mpi$X2016.04.01 + sum_p_4_5_rca_mpi$X2016.05.01 + sum_p_4_5_rca_mpi$X2016.06.01 +
+                          sum_p_4_5_rca_mpi$X2017.03.01 + sum_p_4_5_rca_mpi$X2017.04.01 + sum_p_4_5_rca_mpi$X2017.05.01 + sum_p_4_5_rca_mpi$X2017.06.01 +
+                          sum_p_4_5_rca_mpi$X2018.03.01 + sum_p_4_5_rca_mpi$X2018.04.01 + sum_p_4_5_rca_mpi$X2018.05.01 + sum_p_4_5_rca_mpi$X2018.06.01 +
+                          sum_p_4_5_rca_mpi$X2019.03.01 + sum_p_4_5_rca_mpi$X2019.04.01 + sum_p_4_5_rca_mpi$X2019.05.01 + sum_p_4_5_rca_mpi$X2019.06.01 +
+                          sum_p_4_5_rca_mpi$X2020.03.01 + sum_p_4_5_rca_mpi$X2020.04.01 + sum_p_4_5_rca_mpi$X2020.05.01 + sum_p_4_5_rca_mpi$X2020.06.01 +
+                          sum_p_4_5_rca_mpi$X2021.03.01 + sum_p_4_5_rca_mpi$X2021.04.01 + sum_p_4_5_rca_mpi$X2021.05.01 + sum_p_4_5_rca_mpi$X2021.06.01)/6
+sum_p_4_5_rca_mpi <- sum_p_4_5_rca_mpi$X2050.03.01 + sum_p_4_5_rca_mpi$X2050.04.01 + sum_p_4_5_rca_mpi$X2050.05.01 + sum_p_4_5_rca_mpi$X2050.06.01
+sum_p_4_5_wrf <- brick("raw_data/12_total_precipitation-projections-monthly-rcp_4_5-wrf381p-ipsl_cm5a_mr-r1i1p1-grid-v1.0.nc")
+sum_p_4_5_wrf_2016 <- (sum_p_4_5_wrf$X2016.03.01 + sum_p_4_5_wrf$X2016.04.01 + sum_p_4_5_wrf$X2016.05.01 + sum_p_4_5_wrf$X2016.06.01 +
+                          sum_p_4_5_wrf$X2017.03.01 + sum_p_4_5_wrf$X2017.04.01 + sum_p_4_5_wrf$X2017.05.01 + sum_p_4_5_wrf$X2017.06.01 +
+                          sum_p_4_5_wrf$X2018.03.01 + sum_p_4_5_wrf$X2018.04.01 + sum_p_4_5_wrf$X2018.05.01 + sum_p_4_5_wrf$X2018.06.01 +
+                          sum_p_4_5_wrf$X2019.03.01 + sum_p_4_5_wrf$X2019.04.01 + sum_p_4_5_wrf$X2019.05.01 + sum_p_4_5_wrf$X2019.06.01 +
+                          sum_p_4_5_wrf$X2020.03.01 + sum_p_4_5_wrf$X2020.04.01 + sum_p_4_5_wrf$X2020.05.01 + sum_p_4_5_wrf$X2020.06.01 +
+                          sum_p_4_5_wrf$X2021.03.01 + sum_p_4_5_wrf$X2021.04.01 + sum_p_4_5_wrf$X2021.05.01 + sum_p_4_5_wrf$X2021.06.01)/6
+sum_p_4_5_wrf <- sum_p_4_5_wrf$X2050.03.01 + sum_p_4_5_wrf$X2050.04.01 + sum_p_4_5_wrf$X2050.05.01 + sum_p_4_5_wrf$X2050.06.01
+
+sum_p_4_5 <- (sum_p_4_5_cclm + sum_p_4_5_hirham + sum_p_4_5_racmo_ecearth + sum_p_4_5_racmo_hadgem + sum_p_4_5_rca_hadgem + sum_p_4_5_rca_mpi + sum_p_4_5_wrf)/7
+sum_p_2016 <- (sum_p_4_5_cclm_2016 + sum_p_4_5_hirham_2016 + sum_p_4_5_racmo_ecearth_2016 + sum_p_4_5_racmo_hadgem_2016 + sum_p_4_5_rca_hadgem_2016 + sum_p_4_5_rca_mpi_2016 + sum_p_4_5_wrf_2016)/7
+
+### Temperature variation
+
+max_t_4_5_cclm <- brick("raw_data/l1_daily_maximum_temperature-projections-monthly-mean-rcp_4_5-cclm4_8_17-mpi_esm_lr-r1i1p1-grid-v1.0.nc")
+max_t_4_5_cclm_2016 <- (max_t_4_5_cclm$X2016.03.01 + max_t_4_5_cclm$X2016.04.01 + max_t_4_5_cclm$X2016.05.01 + max_t_4_5_cclm$X2016.06.01 +
+                           max_t_4_5_cclm$X2017.03.01 + max_t_4_5_cclm$X2017.04.01 + max_t_4_5_cclm$X2017.05.01 + max_t_4_5_cclm$X2017.06.01 +
+                           max_t_4_5_cclm$X2018.03.01 + max_t_4_5_cclm$X2018.04.01 + max_t_4_5_cclm$X2018.05.01 + max_t_4_5_cclm$X2018.06.01 +
+                           max_t_4_5_cclm$X2019.03.01 + max_t_4_5_cclm$X2019.04.01 + max_t_4_5_cclm$X2019.05.01 + max_t_4_5_cclm$X2019.06.01 +
+                           max_t_4_5_cclm$X2020.03.01 + max_t_4_5_cclm$X2020.04.01 + max_t_4_5_cclm$X2020.05.01 + max_t_4_5_cclm$X2020.06.01 +
+                           max_t_4_5_cclm$X2021.03.01 + max_t_4_5_cclm$X2021.04.01 + max_t_4_5_cclm$X2021.05.01 + max_t_4_5_cclm$X2021.06.01)/24
+max_t_4_5_cclm <- (max_t_4_5_cclm$X2050.03.01 + max_t_4_5_cclm$X2050.04.01 + max_t_4_5_cclm$X2050.05.01 + max_t_4_5_cclm$X2050.06.01)/4
+max_t_4_5_hirham <- brick("raw_data/l1_daily_maximum_temperature-projections-monthly-mean-rcp_4_5-hirham5-noresm1_m-r1i1p1-grid-v1.0.nc")
+max_t_4_5_hirham_2016 <- (max_t_4_5_hirham$X2016.03.01 + max_t_4_5_hirham$X2016.04.01 + max_t_4_5_hirham$X2016.05.01 + max_t_4_5_hirham$X2016.06.01 +
+                             max_t_4_5_hirham$X2017.03.01 + max_t_4_5_hirham$X2017.04.01 + max_t_4_5_hirham$X2017.05.01 + max_t_4_5_hirham$X2017.06.01 +
+                             max_t_4_5_hirham$X2018.03.01 + max_t_4_5_hirham$X2018.04.01 + max_t_4_5_hirham$X2018.05.01 + max_t_4_5_hirham$X2018.06.01 +
+                             max_t_4_5_hirham$X2019.03.01 + max_t_4_5_hirham$X2019.04.01 + max_t_4_5_hirham$X2019.05.01 + max_t_4_5_hirham$X2019.06.01 +
+                             max_t_4_5_hirham$X2020.03.01 + max_t_4_5_hirham$X2020.04.01 + max_t_4_5_hirham$X2020.05.01 + max_t_4_5_hirham$X2020.06.01 +
+                             max_t_4_5_hirham$X2021.03.01 + max_t_4_5_hirham$X2021.04.01 + max_t_4_5_hirham$X2021.05.01 + max_t_4_5_hirham$X2021.06.01)/24
+max_t_4_5_hirham <- (max_t_4_5_hirham$X2050.03.01 + max_t_4_5_hirham$X2050.04.01 + max_t_4_5_hirham$X2050.05.01 + max_t_4_5_hirham$X2050.06.01)/4
+max_t_4_5_racmo_ecearth <- brick("raw_data/l1_daily_maximum_temperature-projections-monthly-mean-rcp_4_5-racmo22e-ec_earth-r1i1p1-grid-v1.0.nc")
+max_t_4_5_racmo_ecearth_2016 <- (max_t_4_5_racmo_ecearth$X2016.03.01 + max_t_4_5_racmo_ecearth$X2016.04.01 + max_t_4_5_racmo_ecearth$X2016.05.01 + max_t_4_5_racmo_ecearth$X2016.06.01 +
+                                    max_t_4_5_racmo_ecearth$X2017.03.01 + max_t_4_5_racmo_ecearth$X2017.04.01 + max_t_4_5_racmo_ecearth$X2017.05.01 + max_t_4_5_racmo_ecearth$X2017.06.01 +
+                                    max_t_4_5_racmo_ecearth$X2018.03.01 + max_t_4_5_racmo_ecearth$X2018.04.01 + max_t_4_5_racmo_ecearth$X2018.05.01 + max_t_4_5_racmo_ecearth$X2018.06.01 +
+                                    max_t_4_5_racmo_ecearth$X2019.03.01 + max_t_4_5_racmo_ecearth$X2019.04.01 + max_t_4_5_racmo_ecearth$X2019.05.01 + max_t_4_5_racmo_ecearth$X2019.06.01 +
+                                    max_t_4_5_racmo_ecearth$X2020.03.01 + max_t_4_5_racmo_ecearth$X2020.04.01 + max_t_4_5_racmo_ecearth$X2020.05.01 + max_t_4_5_racmo_ecearth$X2020.06.01 +
+                                    max_t_4_5_racmo_ecearth$X2021.03.01 + max_t_4_5_racmo_ecearth$X2021.04.01 + max_t_4_5_racmo_ecearth$X2021.05.01 + max_t_4_5_racmo_ecearth$X2021.06.01)/24
+max_t_4_5_racmo_ecearth <- (max_t_4_5_racmo_ecearth$X2050.03.01 + max_t_4_5_racmo_ecearth$X2050.04.01 + max_t_4_5_racmo_ecearth$X2050.05.01 + max_t_4_5_racmo_ecearth$X2050.06.01)/4
+max_t_4_5_racmo_hadgem <- brick("raw_data/l1_daily_maximum_temperature-projections-monthly-mean-rcp_4_5-racmo22e-hadgem2_es-r1i1p1-grid-v1.0.nc")
+max_t_4_5_racmo_hadgem_2016 <- (max_t_4_5_racmo_hadgem$X2016.03.01 + max_t_4_5_racmo_hadgem$X2016.04.01 + max_t_4_5_racmo_hadgem$X2016.05.01 + max_t_4_5_racmo_hadgem$X2016.06.01 +
+                                   max_t_4_5_racmo_hadgem$X2017.03.01 + max_t_4_5_racmo_hadgem$X2017.04.01 + max_t_4_5_racmo_hadgem$X2017.05.01 + max_t_4_5_racmo_hadgem$X2017.06.01 +
+                                   max_t_4_5_racmo_hadgem$X2018.03.01 + max_t_4_5_racmo_hadgem$X2018.04.01 + max_t_4_5_racmo_hadgem$X2018.05.01 + max_t_4_5_racmo_hadgem$X2018.06.01 +
+                                   max_t_4_5_racmo_hadgem$X2019.03.01 + max_t_4_5_racmo_hadgem$X2019.04.01 + max_t_4_5_racmo_hadgem$X2019.05.01 + max_t_4_5_racmo_hadgem$X2019.06.01 +
+                                   max_t_4_5_racmo_hadgem$X2020.03.01 + max_t_4_5_racmo_hadgem$X2020.04.01 + max_t_4_5_racmo_hadgem$X2020.05.01 + max_t_4_5_racmo_hadgem$X2020.06.01 +
+                                   max_t_4_5_racmo_hadgem$X2021.03.01 + max_t_4_5_racmo_hadgem$X2021.04.01 + max_t_4_5_racmo_hadgem$X2021.05.01 + max_t_4_5_racmo_hadgem$X2021.06.01)/24
+max_t_4_5_racmo_hadgem <- (max_t_4_5_racmo_hadgem$X2050.03.01 + max_t_4_5_racmo_hadgem$X2050.04.01 + max_t_4_5_racmo_hadgem$X2050.05.01 + max_t_4_5_racmo_hadgem$X2050.06.01)/4
+max_t_4_5_rca_hadgem <- brick("raw_data/l1_daily_maximum_temperature-projections-monthly-mean-rcp_4_5-rca4-hadgem2_es-r1i1p1-grid-v1.0.nc")
+max_t_4_5_rca_hadgem_2016 <- (max_t_4_5_rca_hadgem$X2016.03.01 + max_t_4_5_rca_hadgem$X2016.04.01 + max_t_4_5_rca_hadgem$X2016.05.01 + max_t_4_5_rca_hadgem$X2016.06.01 +
+                                 max_t_4_5_rca_hadgem$X2017.03.01 + max_t_4_5_rca_hadgem$X2017.04.01 + max_t_4_5_rca_hadgem$X2017.05.01 + max_t_4_5_rca_hadgem$X2017.06.01 +
+                                 max_t_4_5_rca_hadgem$X2018.03.01 + max_t_4_5_rca_hadgem$X2018.04.01 + max_t_4_5_rca_hadgem$X2018.05.01 + max_t_4_5_rca_hadgem$X2018.06.01 +
+                                 max_t_4_5_rca_hadgem$X2019.03.01 + max_t_4_5_rca_hadgem$X2019.04.01 + max_t_4_5_rca_hadgem$X2019.05.01 + max_t_4_5_rca_hadgem$X2019.06.01 +
+                                 max_t_4_5_rca_hadgem$X2020.03.01 + max_t_4_5_rca_hadgem$X2020.04.01 + max_t_4_5_rca_hadgem$X2020.05.01 + max_t_4_5_rca_hadgem$X2020.06.01 +
+                                 max_t_4_5_rca_hadgem$X2021.03.01 + max_t_4_5_rca_hadgem$X2021.04.01 + max_t_4_5_rca_hadgem$X2021.05.01 + max_t_4_5_rca_hadgem$X2021.06.01)/24
+max_t_4_5_rca_hadgem <- (max_t_4_5_rca_hadgem$X2050.03.01 + max_t_4_5_rca_hadgem$X2050.04.01 + max_t_4_5_rca_hadgem$X2050.05.01 + max_t_4_5_rca_hadgem$X2050.06.01)/4
+max_t_4_5_rca_mpi <- brick("raw_data/l1_daily_maximum_temperature-projections-monthly-mean-rcp_4_5-rca4-mpi_esm_lr-r1i1p1-grid-v1.0.nc")
+max_t_4_5_rca_mpi_2016 <- (max_t_4_5_rca_mpi$X2016.03.01 + max_t_4_5_rca_mpi$X2016.04.01 + max_t_4_5_rca_mpi$X2016.05.01 + max_t_4_5_rca_mpi$X2016.06.01 +
+                              max_t_4_5_rca_mpi$X2017.03.01 + max_t_4_5_rca_mpi$X2017.04.01 + max_t_4_5_rca_mpi$X2017.05.01 + max_t_4_5_rca_mpi$X2017.06.01 +
+                              max_t_4_5_rca_mpi$X2018.03.01 + max_t_4_5_rca_mpi$X2018.04.01 + max_t_4_5_rca_mpi$X2018.05.01 + max_t_4_5_rca_mpi$X2018.06.01 +
+                              max_t_4_5_rca_mpi$X2019.03.01 + max_t_4_5_rca_mpi$X2019.04.01 + max_t_4_5_rca_mpi$X2019.05.01 + max_t_4_5_rca_mpi$X2019.06.01 +
+                              max_t_4_5_rca_mpi$X2020.03.01 + max_t_4_5_rca_mpi$X2020.04.01 + max_t_4_5_rca_mpi$X2020.05.01 + max_t_4_5_rca_mpi$X2020.06.01 +
+                              max_t_4_5_rca_mpi$X2021.03.01 + max_t_4_5_rca_mpi$X2021.04.01 + max_t_4_5_rca_mpi$X2021.05.01 + max_t_4_5_rca_mpi$X2021.06.01)/24
+max_t_4_5_rca_mpi <- (max_t_4_5_rca_mpi$X2050.03.01 + max_t_4_5_rca_mpi$X2050.04.01 + max_t_4_5_rca_mpi$X2050.05.01 + max_t_4_5_rca_mpi$X2050.06.01)/4
+max_t_4_5_wrf <- brick("raw_data/l1_daily_maximum_temperature-projections-monthly-mean-rcp_4_5-wrf381p-ipsl_cm5a_mr-r1i1p1-grid-v1.0.nc")
+max_t_4_5_wrf_2016 <- (max_t_4_5_wrf$X2016.03.01 + max_t_4_5_wrf$X2016.04.01 + max_t_4_5_wrf$X2016.05.01 + max_t_4_5_wrf$X2016.06.01 +
+                          max_t_4_5_wrf$X2017.03.01 + max_t_4_5_wrf$X2017.04.01 + max_t_4_5_wrf$X2017.05.01 + max_t_4_5_wrf$X2017.06.01 +
+                          max_t_4_5_wrf$X2018.03.01 + max_t_4_5_wrf$X2018.04.01 + max_t_4_5_wrf$X2018.05.01 + max_t_4_5_wrf$X2018.06.01 +
+                          max_t_4_5_wrf$X2019.03.01 + max_t_4_5_wrf$X2019.04.01 + max_t_4_5_wrf$X2019.05.01 + max_t_4_5_wrf$X2019.06.01 +
+                          max_t_4_5_wrf$X2020.03.01 + max_t_4_5_wrf$X2020.04.01 + max_t_4_5_wrf$X2020.05.01 + max_t_4_5_wrf$X2020.06.01 +
+                          max_t_4_5_wrf$X2021.03.01 + max_t_4_5_wrf$X2021.04.01 + max_t_4_5_wrf$X2021.05.01 + max_t_4_5_wrf$X2021.06.01)/24
+max_t_4_5_wrf <- (max_t_4_5_wrf$X2050.03.01 + max_t_4_5_wrf$X2050.04.01 + max_t_4_5_wrf$X2050.05.01 + max_t_4_5_wrf$X2050.06.01)/4
+
+max_t_4_5 <- (max_t_4_5_cclm + max_t_4_5_hirham + max_t_4_5_racmo_ecearth + max_t_4_5_racmo_hadgem + max_t_4_5_rca_hadgem + max_t_4_5_rca_mpi + max_t_4_5_wrf)/7 - 272.15
+max_t_2016 <- (max_t_4_5_cclm_2016 + max_t_4_5_hirham_2016 + max_t_4_5_racmo_ecearth_2016 + max_t_4_5_racmo_hadgem_2016 + max_t_4_5_rca_hadgem_2016 + max_t_4_5_rca_mpi_2016 + max_t_4_5_wrf_2016)/7 - 272.15
+
+min_t_4_5_cclm <- brick("raw_data/l2_daily_minimum_temperature-projections-monthly-mean-rcp_4_5-cclm4_8_17-mpi_esm_lr-r1i1p1-grid-v1.0.nc")
+min_t_4_5_cclm_2016 <- (min_t_4_5_cclm$X2016.03.01 + min_t_4_5_cclm$X2016.04.01 + min_t_4_5_cclm$X2016.05.01 + min_t_4_5_cclm$X2016.06.01 +
+                          min_t_4_5_cclm$X2017.03.01 + min_t_4_5_cclm$X2017.04.01 + min_t_4_5_cclm$X2017.05.01 + min_t_4_5_cclm$X2017.06.01 +
+                          min_t_4_5_cclm$X2018.03.01 + min_t_4_5_cclm$X2018.04.01 + min_t_4_5_cclm$X2018.05.01 + min_t_4_5_cclm$X2018.06.01 +
+                          min_t_4_5_cclm$X2019.03.01 + min_t_4_5_cclm$X2019.04.01 + min_t_4_5_cclm$X2019.05.01 + min_t_4_5_cclm$X2019.06.01 +
+                          min_t_4_5_cclm$X2020.03.01 + min_t_4_5_cclm$X2020.04.01 + min_t_4_5_cclm$X2020.05.01 + min_t_4_5_cclm$X2020.06.01 +
+                          min_t_4_5_cclm$X2021.03.01 + min_t_4_5_cclm$X2021.04.01 + min_t_4_5_cclm$X2021.05.01 + min_t_4_5_cclm$X2021.06.01)/24
+min_t_4_5_cclm <- (min_t_4_5_cclm$X2050.03.01 + min_t_4_5_cclm$X2050.04.01 + min_t_4_5_cclm$X2050.05.01 + min_t_4_5_cclm$X2050.06.01)/4
+min_t_4_5_hirham <- brick("raw_data/l2_daily_minimum_temperature-projections-monthly-mean-rcp_4_5-hirham5-noresm1_m-r1i1p1-grid-v1.0.nc")
+min_t_4_5_hirham_2016 <- (min_t_4_5_hirham$X2016.03.01 + min_t_4_5_hirham$X2016.04.01 + min_t_4_5_hirham$X2016.05.01 + min_t_4_5_hirham$X2016.06.01 +
+                            min_t_4_5_hirham$X2017.03.01 + min_t_4_5_hirham$X2017.04.01 + min_t_4_5_hirham$X2017.05.01 + min_t_4_5_hirham$X2017.06.01 +
+                            min_t_4_5_hirham$X2018.03.01 + min_t_4_5_hirham$X2018.04.01 + min_t_4_5_hirham$X2018.05.01 + min_t_4_5_hirham$X2018.06.01 +
+                            min_t_4_5_hirham$X2019.03.01 + min_t_4_5_hirham$X2019.04.01 + min_t_4_5_hirham$X2019.05.01 + min_t_4_5_hirham$X2019.06.01 +
+                            min_t_4_5_hirham$X2020.03.01 + min_t_4_5_hirham$X2020.04.01 + min_t_4_5_hirham$X2020.05.01 + min_t_4_5_hirham$X2020.06.01 +
+                            min_t_4_5_hirham$X2021.03.01 + min_t_4_5_hirham$X2021.04.01 + min_t_4_5_hirham$X2021.05.01 + min_t_4_5_hirham$X2021.06.01)/24
+min_t_4_5_hirham <- (min_t_4_5_hirham$X2050.03.01 + min_t_4_5_hirham$X2050.04.01 + min_t_4_5_hirham$X2050.05.01 + min_t_4_5_hirham$X2050.06.01)/4
+min_t_4_5_racmo_ecearth <- brick("raw_data/l2_daily_minimum_temperature-projections-monthly-mean-rcp_4_5-racmo22e-ec_earth-r1i1p1-grid-v1.0.nc")
+min_t_4_5_racmo_ecearth_2016 <- (min_t_4_5_racmo_ecearth$X2016.03.01 + min_t_4_5_racmo_ecearth$X2016.04.01 + min_t_4_5_racmo_ecearth$X2016.05.01 + min_t_4_5_racmo_ecearth$X2016.06.01 +
+                                   min_t_4_5_racmo_ecearth$X2017.03.01 + min_t_4_5_racmo_ecearth$X2017.04.01 + min_t_4_5_racmo_ecearth$X2017.05.01 + min_t_4_5_racmo_ecearth$X2017.06.01 +
+                                   min_t_4_5_racmo_ecearth$X2018.03.01 + min_t_4_5_racmo_ecearth$X2018.04.01 + min_t_4_5_racmo_ecearth$X2018.05.01 + min_t_4_5_racmo_ecearth$X2018.06.01 +
+                                   min_t_4_5_racmo_ecearth$X2019.03.01 + min_t_4_5_racmo_ecearth$X2019.04.01 + min_t_4_5_racmo_ecearth$X2019.05.01 + min_t_4_5_racmo_ecearth$X2019.06.01 +
+                                   min_t_4_5_racmo_ecearth$X2020.03.01 + min_t_4_5_racmo_ecearth$X2020.04.01 + min_t_4_5_racmo_ecearth$X2020.05.01 + min_t_4_5_racmo_ecearth$X2020.06.01 +
+                                   min_t_4_5_racmo_ecearth$X2021.03.01 + min_t_4_5_racmo_ecearth$X2021.04.01 + min_t_4_5_racmo_ecearth$X2021.05.01 + min_t_4_5_racmo_ecearth$X2021.06.01)/24
+min_t_4_5_racmo_ecearth <- (min_t_4_5_racmo_ecearth$X2050.03.01 + min_t_4_5_racmo_ecearth$X2050.04.01 + min_t_4_5_racmo_ecearth$X2050.05.01 + min_t_4_5_racmo_ecearth$X2050.06.01)/4
+min_t_4_5_racmo_hadgem <- brick("raw_data/l2_daily_minimum_temperature-projections-monthly-mean-rcp_4_5-racmo22e-hadgem2_es-r1i1p1-grid-v1.0.nc")
+min_t_4_5_racmo_hadgem_2016 <- (min_t_4_5_racmo_hadgem$X2016.03.01 + min_t_4_5_racmo_hadgem$X2016.04.01 + min_t_4_5_racmo_hadgem$X2016.05.01 + min_t_4_5_racmo_hadgem$X2016.06.01 +
+                                  min_t_4_5_racmo_hadgem$X2017.03.01 + min_t_4_5_racmo_hadgem$X2017.04.01 + min_t_4_5_racmo_hadgem$X2017.05.01 + min_t_4_5_racmo_hadgem$X2017.06.01 +
+                                  min_t_4_5_racmo_hadgem$X2018.03.01 + min_t_4_5_racmo_hadgem$X2018.04.01 + min_t_4_5_racmo_hadgem$X2018.05.01 + min_t_4_5_racmo_hadgem$X2018.06.01 +
+                                  min_t_4_5_racmo_hadgem$X2019.03.01 + min_t_4_5_racmo_hadgem$X2019.04.01 + min_t_4_5_racmo_hadgem$X2019.05.01 + min_t_4_5_racmo_hadgem$X2019.06.01 +
+                                  min_t_4_5_racmo_hadgem$X2020.03.01 + min_t_4_5_racmo_hadgem$X2020.04.01 + min_t_4_5_racmo_hadgem$X2020.05.01 + min_t_4_5_racmo_hadgem$X2020.06.01 +
+                                  min_t_4_5_racmo_hadgem$X2021.03.01 + min_t_4_5_racmo_hadgem$X2021.04.01 + min_t_4_5_racmo_hadgem$X2021.05.01 + min_t_4_5_racmo_hadgem$X2021.06.01)/24
+min_t_4_5_racmo_hadgem <- (min_t_4_5_racmo_hadgem$X2050.03.01 + min_t_4_5_racmo_hadgem$X2050.04.01 + min_t_4_5_racmo_hadgem$X2050.05.01 + min_t_4_5_racmo_hadgem$X2050.06.01)/4
+min_t_4_5_rca_hadgem <- brick("raw_data/l2_daily_minimum_temperature-projections-monthly-mean-rcp_4_5-rca4-hadgem2_es-r1i1p1-grid-v1.0.nc")
+min_t_4_5_rca_hadgem_2016 <- (min_t_4_5_rca_hadgem$X2016.03.01 + min_t_4_5_rca_hadgem$X2016.04.01 + min_t_4_5_rca_hadgem$X2016.05.01 + min_t_4_5_rca_hadgem$X2016.06.01 +
+                                min_t_4_5_rca_hadgem$X2017.03.01 + min_t_4_5_rca_hadgem$X2017.04.01 + min_t_4_5_rca_hadgem$X2017.05.01 + min_t_4_5_rca_hadgem$X2017.06.01 +
+                                min_t_4_5_rca_hadgem$X2018.03.01 + min_t_4_5_rca_hadgem$X2018.04.01 + min_t_4_5_rca_hadgem$X2018.05.01 + min_t_4_5_rca_hadgem$X2018.06.01 +
+                                min_t_4_5_rca_hadgem$X2019.03.01 + min_t_4_5_rca_hadgem$X2019.04.01 + min_t_4_5_rca_hadgem$X2019.05.01 + min_t_4_5_rca_hadgem$X2019.06.01 +
+                                min_t_4_5_rca_hadgem$X2020.03.01 + min_t_4_5_rca_hadgem$X2020.04.01 + min_t_4_5_rca_hadgem$X2020.05.01 + min_t_4_5_rca_hadgem$X2020.06.01 +
+                                min_t_4_5_rca_hadgem$X2021.03.01 + min_t_4_5_rca_hadgem$X2021.04.01 + min_t_4_5_rca_hadgem$X2021.05.01 + min_t_4_5_rca_hadgem$X2021.06.01)/24
+min_t_4_5_rca_hadgem <- (min_t_4_5_rca_hadgem$X2050.03.01 + min_t_4_5_rca_hadgem$X2050.04.01 + min_t_4_5_rca_hadgem$X2050.05.01 + min_t_4_5_rca_hadgem$X2050.06.01)/4
+min_t_4_5_rca_mpi <- brick("raw_data/l2_daily_minimum_temperature-projections-monthly-mean-rcp_4_5-rca4-mpi_esm_lr-r1i1p1-grid-v1.0.nc")
+min_t_4_5_rca_mpi_2016 <- (min_t_4_5_rca_mpi$X2016.03.01 + min_t_4_5_rca_mpi$X2016.04.01 + min_t_4_5_rca_mpi$X2016.05.01 + min_t_4_5_rca_mpi$X2016.06.01 +
+                             min_t_4_5_rca_mpi$X2017.03.01 + min_t_4_5_rca_mpi$X2017.04.01 + min_t_4_5_rca_mpi$X2017.05.01 + min_t_4_5_rca_mpi$X2017.06.01 +
+                             min_t_4_5_rca_mpi$X2018.03.01 + min_t_4_5_rca_mpi$X2018.04.01 + min_t_4_5_rca_mpi$X2018.05.01 + min_t_4_5_rca_mpi$X2018.06.01 +
+                             min_t_4_5_rca_mpi$X2019.03.01 + min_t_4_5_rca_mpi$X2019.04.01 + min_t_4_5_rca_mpi$X2019.05.01 + min_t_4_5_rca_mpi$X2019.06.01 +
+                             min_t_4_5_rca_mpi$X2020.03.01 + min_t_4_5_rca_mpi$X2020.04.01 + min_t_4_5_rca_mpi$X2020.05.01 + min_t_4_5_rca_mpi$X2020.06.01 +
+                             min_t_4_5_rca_mpi$X2021.03.01 + min_t_4_5_rca_mpi$X2021.04.01 + min_t_4_5_rca_mpi$X2021.05.01 + min_t_4_5_rca_mpi$X2021.06.01)/24
+min_t_4_5_rca_mpi <- (min_t_4_5_rca_mpi$X2050.03.01 + min_t_4_5_rca_mpi$X2050.04.01 + min_t_4_5_rca_mpi$X2050.05.01 + min_t_4_5_rca_mpi$X2050.06.01)/4
+min_t_4_5_wrf <- brick("raw_data/l2_daily_minimum_temperature-projections-monthly-mean-rcp_4_5-wrf381p-ipsl_cm5a_mr-r1i1p1-grid-v1.0.nc")
+min_t_4_5_wrf_2016 <- (min_t_4_5_wrf$X2016.03.01 + min_t_4_5_wrf$X2016.04.01 + min_t_4_5_wrf$X2016.05.01 + min_t_4_5_wrf$X2016.06.01 +
+                         min_t_4_5_wrf$X2017.03.01 + min_t_4_5_wrf$X2017.04.01 + min_t_4_5_wrf$X2017.05.01 + min_t_4_5_wrf$X2017.06.01 +
+                         min_t_4_5_wrf$X2018.03.01 + min_t_4_5_wrf$X2018.04.01 + min_t_4_5_wrf$X2018.05.01 + min_t_4_5_wrf$X2018.06.01 +
+                         min_t_4_5_wrf$X2019.03.01 + min_t_4_5_wrf$X2019.04.01 + min_t_4_5_wrf$X2019.05.01 + min_t_4_5_wrf$X2019.06.01 +
+                         min_t_4_5_wrf$X2020.03.01 + min_t_4_5_wrf$X2020.04.01 + min_t_4_5_wrf$X2020.05.01 + min_t_4_5_wrf$X2020.06.01 +
+                         min_t_4_5_wrf$X2021.03.01 + min_t_4_5_wrf$X2021.04.01 + min_t_4_5_wrf$X2021.05.01 + min_t_4_5_wrf$X2021.06.01)/24
+min_t_4_5_wrf <- (min_t_4_5_wrf$X2050.03.01 + min_t_4_5_wrf$X2050.04.01 + min_t_4_5_wrf$X2050.05.01 + min_t_4_5_wrf$X2050.06.01)/4
+
+min_t_4_5 <- (min_t_4_5_cclm + min_t_4_5_hirham + min_t_4_5_racmo_ecearth + min_t_4_5_racmo_hadgem + min_t_4_5_rca_hadgem + min_t_4_5_rca_mpi + min_t_4_5_wrf)/7 - 272.15
+min_t_2016 <- (min_t_4_5_cclm_2016 + min_t_4_5_hirham_2016 + min_t_4_5_racmo_ecearth_2016 + min_t_4_5_racmo_hadgem_2016 + min_t_4_5_rca_hadgem_2016 + min_t_4_5_rca_mpi_2016 + min_t_4_5_wrf_2016)/7 - 272.15
+
+var_t_4_5 <- max_t_4_5-min_t_4_5
+var_t_2016 <- max_t_2016-min_t_2016
+
+
+climate_pls <- data.frame(PLS = c(as.character(c(1:19,21:25)),"europe"),
+                          mean_t_2016=c(exact_extract(mean_t_2016,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="mean"),exact_extract(mean_t_2016,grid_eu_mainland_outline, fun="mean")),
+                          mean_t_4_5=c(exact_extract(mean_t_4_5,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="mean"),exact_extract(mean_t_4_5,grid_eu_mainland_outline, fun="mean")),
+                          mean_t_8_5=c(exact_extract(mean_t_8_5,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="mean"),exact_extract(mean_t_8_5,grid_eu_mainland_outline, fun="mean")),
+                          sum_p_2016=c(exact_extract(sum_p_2016,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="mean"),exact_extract(sum_p_2016,grid_eu_mainland_outline, fun="mean")),
+                          sum_p_4_5=c(exact_extract(sum_p_4_5,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="mean"),exact_extract(sum_p_4_5,grid_eu_mainland_outline, fun="mean")),
+                          sum_p_8_5=c(exact_extract(sum_p_8_5,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="mean"),exact_extract(sum_p_8_5,grid_eu_mainland_outline, fun="mean")),
+                          var_t_2016=c(exact_extract(var_t_2016,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="mean"),exact_extract(var_t_2016,grid_eu_mainland_outline, fun="mean")),
+                          var_t_4_5=c(exact_extract(var_t_4_5,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="mean"),exact_extract(var_t_4_5,grid_eu_mainland_outline, fun="mean")),
+                          var_t_8_5=c(exact_extract(var_t_8_5,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="mean"),exact_extract(var_t_8_5,grid_eu_mainland_outline, fun="mean")))
+
+```
+
+### Effect on scenarios on common species
+
+#### Birds
+
+```{r}
+
+# load unscale pressure
+
+pressure_publi_unscale <- read.csv("raw_data/pressure_publi_unscale.csv")
+
+# run for the subset data
+
+predict_trend_all_bird_ex <- predict_trend_bird(bird_data, pressure_data = pressure_publi,
+                      pressure_data_unscale=pressure_publi_unscale,
+                      lulc_pls_short=lulc_pls_short,climate_pls=climate_pls,pa_pls_short=pa_pls_short)
+
+# load results from all data
+
+predict_trend_all_bird <- read.csv("output/predict_trend_all_bird.csv")
+
+pecbms_species <- c("Acanthis flammea","Accipiter nisus",
+"Acrocephalus arundinaceus","Acrocephalus palustris",
+"Acrocephalus schoenobaenus","Acrocephalus scirpaceus",
+"Actitis hypoleucos","Aegithalos caudatus",
+"Alauda arvensis","Alcedo atthis",
+"Alectoris rufa","Anas platyrhynchos",
+"Anthus campestris","Anthus pratensis",
+"Anthus trivialis","Apus apus",
+"Ardea cinerea","Bombycilla garrulus",
+"Bubulcus ibis","Burhinus oedicnemus",
+"Buteo buteo","Calandrella brachydactyla",
+"Calcarius lapponicus","Carduelis carduelis",
+"Carduelis citrinella","Carpodacus erythrinus",
+"Cecropis daurica","Certhia brachydactyla",
+"Certhia familiaris","Cettia cetti",
+"Chloris chloris","Ciconia ciconia",
+"Circus aeruginosus","Cisticola juncidis",
+"Clamator glandarius","Coccothraustes coccothraustes",
+"Columba oenas","Columba palumbus",
+"Corvus corax","Corvus corone",
+"Corvus frugilegus","Corvus monedula",
+"Cuculus canorus","Curruca cantillans / Curruca subalpina",
+"Curruca communis","Curruca curruca",
+"Curruca hortensis","Curruca melanocephala",
+"Curruca melanothorax","Curruca nisoria",
+"Curruca undata","Cyanistes caeruleus",
+"Cyanopica cooki","Cygnus olor",
+"Delichon urbicum","Dendrocopos major",
+"Dendrocopos syriacus","Dryobates minor",
+"Dryocopus martius","Egretta garzetta",
+"Emberiza calandra","Emberiza cia",
+"Emberiza cirlus","Emberiza citrinella",
+"Emberiza hortulana","Emberiza melanocephala",
+"Emberiza rustica","Emberiza schoeniclus",
+"Erithacus rubecula","Falco tinnunculus",
+"Ficedula albicollis","Ficedula hypoleuca",
+"Fringilla coelebs","Fringilla montifringilla",
+"Fulica atra","Galerida cristata",
+"Galerida theklae","Gallinago gallinago",
+"Gallinula chloropus","Garrulus glandarius",
+"Grus grus","Haematopus ostralegus",
+"Hippolais icterina","Hippolais polyglotta",
+"Hirundo rustica","Iduna pallida",
+"Jynx torquilla","Lanius collurio",
+"Lanius minor","Lanius senator",
+"Larus ridibundus","Leiopicus medius",
+"Limosa limosa","Linaria cannabina",
+ "Locustella fluviatilis","Locustella naevia",
+"Lophophanes cristatus","Lullula arborea",
+"Luscinia luscinia","Luscinia megarhynchos",
+"Luscinia svecica","Lyrurus tetrix",
+"Melanocorypha calandra","Merops apiaster",
+"Motacilla alba","Motacilla cinerea",
+"Motacilla flava","Muscicapa striata",
+"Nucifraga caryocatactes","Numenius arquata",
+"Numenius phaeopus","Oenanthe cypriaca",
+"Oenanthe hispanica","Oenanthe oenanthe",
+"Oriolus oriolus","Parus major",
+"Passer domesticus","Passer montanus",
+"Perdix perdix","Periparus ater",
+"Petronia petronia","Phasianus colchicus",
+"Phoenicurus ochruros","Phoenicurus phoenicurus",
+"Phylloscopus bonelli","Phylloscopus collybita",
+"Phylloscopus sibilatrix","Phylloscopus trochilus",
+"Pica pica","Picus canus",
+"Picus viridis / Picus sharpei","Pluvialis apricaria",
+"Podiceps cristatus","Poecile montanus",
+"Poecile palustris","Prunella modularis",
+"Ptyonoprogne rupestris","Pyrrhocorax pyrrhocorax",
+"Pyrrhula pyrrhula","Regulus ignicapilla",
+"Regulus regulus","Saxicola rubetra",
+"Saxicola torquatus","Serinus serinus",
+"Sitta europaea","Spinus spinus",
+"Streptopelia decaocto","Streptopelia turtur",
+"Sturnus unicolor","Sturnus vulgaris",
+"Sylvia atricapilla","Sylvia borin",
+"Tachybaptus ruficollis","Tadorna tadorna",
+"Tetrastes bonasia","Tetrax tetrax",
+"Tringa erythropus","Tringa glareola",
+"Tringa nebularia","Tringa ochropus",
+"Tringa totanus","Troglodytes troglodytes",
+"Turdus iliacus","Turdus merula",
+"Turdus philomelos","Turdus pilaris",
+"Turdus torquatus","Turdus viscivorus",
+"Upupa epops","Vanellus vanellus")
+
+predict_trend_all_bird_correct <- merge(res_gamm_bird_correct[which(res_gamm_bird_correct$sci_name_out %in% pecbms_species),],predict_trend_all_bird, by=c("sci_name_out","PLS"),all.x=TRUE)
+
+# Bound the predicted trends to avoid outliers
+
+predict_trend_all_bird_eu <- predict_trend_all_bird_correct[which(predict_trend_all_bird_correct$PLS=="europe" & predict_trend_all_bird_correct$pressure_removed=="none"),]
+
+
+predict_trend_all_bird_correct <- ddply(predict_trend_all_bird_correct,
+                                             .(PLS),.fun=function(x){
+                                               for(i in c("trend_past","trend_BAU","trend_SSP1","trend_SSP3","trend_nac","trend_nfn","trend_nfs")){
+                                                 value_max <- max(abs(quantile(predict_trend_all_bird_eu$trend_past_signif,0.1)),abs(quantile(predict_trend_all_bird_eu$trend_past_signif,0.9)))
+                                                 x[which(x[,i]>value_max),i] <- value_max
+                                                 x[which(x[,i]<(-value_max)),i] <- -value_max
+                                               }
+                                               for(i in c("trend_past_signif","trend_BAU_signif","trend_SSP1_signif","trend_SSP3_signif","trend_nac_signif","trend_nfn_signif","trend_nfs_signif")){
+                                                 
+                                                 x[which(x[,i]>value_max),i] <- value_max
+                                                 x[which(x[,i]<(-value_max)),i] <- -value_max
+                                               }
+                                               return(x)
+                                             },
+                                             .progress = "text")
+
+predict_trend_farmland <- predict_trend_all_bird_correct[which(predict_trend_all_bird_correct$sci_name_out %in% farmland_species),]
+
+predict_trend_forest <- predict_trend_all_bird_correct[which(predict_trend_all_bird_correct$sci_name_out %in% forest_species),]
+
+# Calculate the geometric mean
+
+overall_trend_all_bird <- ddply(predict_trend_all_bird_correct,
+                                .(PLS,pressure_removed),.fun=overall_mean_sd_trend,
+                                .progress = "text")
+
+overall_trend_farmland_bird <- ddply(predict_trend_farmland,
+                                .(PLS,pressure_removed),.fun=overall_mean_sd_trend,
+                                .progress = "text")
+
+overall_trend_forest_bird <- ddply(predict_trend_forest,
+                                .(PLS,pressure_removed),.fun=overall_mean_sd_trend,
+                                .progress = "text")
+
+# Represent the average trend by biophysical region
+
+overall_trend_all_sf <- merge(grid_eu_mainland_biogeo,overall_trend_all_bird,by="PLS",all.x=TRUE)
+
+ggplot() + geom_sf() +  
+  geom_sf(data=overall_trend_all_sf, aes(fill=mu_bau_signif), col = NA) + 
+  geom_sf(data=grid_eu_mainland_outline, fill=NA) +
+  scale_fill_gradient2(midpoint = 1, name = NULL) + theme_void()
+
+
+```
+
+
+#### Butterflies
+
+```{r}
+
+# load unscale pressure
+
+pressure_publi_butterfly_unscale <- read.csv("raw_data/pressure_publi_butterfly_unscale.csv")
+
+# run for the subset data
+
+predict_trend_all_butterfly_ex <- predict_trend_butterfly(butterfly_data, pressure_data = pressure_publi_butterfly,
+                      pressure_data_unscale=pressure_publi_butterfly_unscale,
+                      lulc_pls_short=lulc_pls_short,climate_pls=climate_pls,pa_pls_short=pa_pls_short)
+
+# load results from all data
+
+predict_trend_all_butterfly <- read.csv("output/predict_trend_all_butterfly.csv")
+
+woodland_species <- c("Apatura ilia","Apatura iris","Apatura metis","Aporia crataegi","Araschnia levana",
+                      "Argynnis laodice","Argynnis pandora","Argynnis paphia","Boloria euphrosyne","Boloria graeca",
+                      "Brintesia circe","Carterocephalus silvicola","Celastrina argiolus","Coenonympha arcania","Coenonympha hero",
+                      "Coenonympha leander","Colias caucasica","Erebia aethiopellus","Erebia aethiops","Erebia cyclopius",
+                      "Erebia euryale","Erebia ligea","Erebia neoridas","Erebia zapateri","Euphydryas intermedia",
+                      "Euphydryas maturna","Fabriciana elisa","Favonius quercus","Gonepteryx farinosa","Gonepteryx maderensis",
+                      "Gonepteryx rhamni","Hipparchia fagi","Hipparchia hermione","Hipparchia maderensis","Hipparchia mersina",
+                      "Hipparchia syriaca","Issoria eugenia","Kirinia climene","Kirinia roxelana","Laeosopis roboris",
+                      "Lasiommata deidamia","Lasiommata maera","Lasiommata petropolitana","Leptidea morsei","Libythea celtis",
+                      "Limenitis camilla","Limenitis populi","Limenitis reducta","Lopinga achine","Melitaea aetherie",
+                      "Neptis rivularis","Neptis sappho","Nymphalis antiopa","Nymphalis polychloros","Nymphalis vaualbum",
+                      "Nymphalis xanthomelas","Pararge aegeria","Pararge xiphia","Pieris balcana","Polygonia c-album",
+                      "Pseudochazara tisiphone","Satyrium acaciae","Satyrium ilicis","Satyrium pruni","Satyrium w-album",
+                      "Thecla betulae","Tomares callimachus")
+
+woodland_ind_species <- c("Apatura ilia","Apatura iris","Aporia crataegi","Araschnia levana",
+                          "Argynnis pandora","Argynnis paphia","Boloria euphrosyne",
+                          "Brintesia circe","Carterocephalus silvicola","Celastrina argiolus","Coenonympha arcania","Coenonympha hero",
+                          "Erebia aethiops","Erebia ligea",
+                          "Euphydryas maturna","Favonius quercus",
+                          "Gonepteryx rhamni","Hipparchia fagi","Hipparchia hermione",
+                          "Lasiommata maera","Lasiommata petropolitana","Libythea celtis",
+                          "Limenitis camilla","Limenitis populi","Limenitis reducta",
+                          "Nymphalis antiopa","Nymphalis polychloros",
+                          "Pararge aegeria","Polygonia c-album",
+                          "Satyrium acaciae","Satyrium ilicis","Satyrium w-album",
+                          "Thecla betulae")
+
+wetland_species <- c("Agriades optilete","Boloria aquilonaris","Boloria eunomia","Boloria freija","Boloria frigga",
+                     "Coenonympha oedippus","Coenonympha tullia","Colias palaeno","Erebia disa","Erebia embla",
+                     "Oeneis jutta","Pyrgus centaureae")
+
+predict_trend_all_butterfly_correct <- merge(res_gamm_butterfly_correct[which(res_gamm_butterfly_correct$sci_name_out %in% res_gamm_butterfly$species_name %in% c(grassland_species, woodland_species, woodland_ind_species, wetland_species)),],predict_trend_all_butterfly, by=c("sci_name_out","PLS"),all.x=TRUE)
+
+# Bound the predicted trends to avoid outliers
+
+predict_trend_all_butterfly_eu <- predict_trend_all_butterfly_correct[which(predict_trend_all_butterfly_correct$PLS=="europe" & predict_trend_all_butterfly_correct$pressure_removed=="none"),]
+
+
+predict_trend_all_butterfly_correct <- ddply(predict_trend_all_butterfly_correct,
+                                             .(PLS),.fun=function(x){
+                                               for(i in c("trend_past","trend_BAU","trend_SSP1","trend_SSP3","trend_nac","trend_nfn","trend_nfs")){
+                                                 value_max <- max(abs(quantile(predict_trend_all_butterfly_eu$trend_past_signif,0.1)),abs(quantile(predict_trend_all_butterfly_eu$trend_past_signif,0.9)))
+                                                 x[which(x[,i]>value_max),i] <- value_max
+                                                 x[which(x[,i]<(-value_max)),i] <- -value_max
+                                               }
+                                               for(i in c("trend_past_signif","trend_BAU_signif","trend_SSP1_signif","trend_SSP3_signif","trend_nac_signif","trend_nfn_signif","trend_nfs_signif")){
+                                                 
+                                                 x[which(x[,i]>value_max),i] <- value_max
+                                                 x[which(x[,i]<(-value_max)),i] <- -value_max
+                                               }
+                                               return(x)
+                                             },
+                                             .progress = "text")
+
+predict_trend_grassland <- predict_trend_all_butterfly_correct[which(predict_trend_all_butterfly_correct$species_name %in% grassland_species),]
+
+predict_trend_woodland <- predict_trend_all_butterfly_correct[which(predict_trend_all_butterfly_correct$species_name %in% woodland_ind_species),]
+
+# Calculate the geometric mean
+
+overall_trend_all_butterfly <- ddply(predict_trend_all_butterfly_correct,
+                                .(PLS,pressure_removed),.fun=overall_mean_sd_trend,
+                                .progress = "text")
+
+overall_trend_grassland_butterfly <- ddply(predict_trend_grassland,
+                                .(PLS,pressure_removed),.fun=overall_mean_sd_trend,
+                                .progress = "text")
+
+overall_trend_woodland_butterfly <- ddply(predict_trend_woodland,
+                                .(PLS,pressure_removed),.fun=overall_mean_sd_trend,
+                                .progress = "text")
+
+# Represent the average trend by biophysical region
+
+overall_trend_all_sf <- merge(grid_eu_mainland_biogeo,overall_trend_all_butterfly,by="PLS",all.x=TRUE)
+
+ggplot() + geom_sf() +  
+  geom_sf(data=overall_trend_all_sf, aes(fill=mu_bau_signif), col = NA) + 
+  geom_sf(data=grid_eu_mainland_outline, fill=NA) +
+  scale_fill_gradient2(midpoint = 1, name = NULL) + theme_void()
+
+
+```
+
+
+```{r}
+
+# Plot the expected trends by scenario at the European level
+
+pressure_removed <- "none"
+
+overall_trend <- overall_trend_all_bird # or overall_trend_farmland_bird/overall_trend_forest_bird/overall_trend_all_butterfly/overall_trend_grassland_butterfly/overall_trend_woodland_butterfly
+
+
+europe_all_signif <- data.frame(value = c(overall_trend$mu_past_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                          overall_trend$mu_bau_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                          overall_trend$mu_ssp1_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                          overall_trend$mu_nac_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                          overall_trend$mu_nfn_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                          overall_trend$mu_nfs_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)]),
+                                sd = c(overall_trend$sd_past_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                       overall_trend$sd_bau_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                       overall_trend$sd_ssp1_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                       overall_trend$sd_nac_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                       overall_trend$sd_nfn_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                       overall_trend$sd_nfs_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)]),
+                                se = c(overall_trend$se_past_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                       overall_trend$se_bau_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                       overall_trend$se_ssp1_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                       overall_trend$se_nac_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                       overall_trend$se_nfn_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                       overall_trend$se_nfs_signif[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)]),
+                                variable = c("past","bau","ssp1","nac","nfn","nfs"))
+
+europe_all_signif2 <- europe_all_signif
+europe_all_signif2$variable <- factor(europe_all_signif2$variable, levels = c("past","bau","ssp1","nfn","nfs","nac"))
+
+# Trend values with errors
+
+ggplot(europe_all_signif2, aes(x=value,y = variable)) + 
+  geom_vline(xintercept = 1, linewidth = .5, linetype="dashed") + 
+  geom_errorbarh(aes(xmax = value-1.96*se, xmin = value+1.96*se), linewidth = .5, height = .2, color = "gray50") +
+  geom_point(size = 3.5, aes(color = variable)) + 
+  scale_color_manual(values = c("past"="black","bau"="red","ssp1"="blue","nfn"="darkgreen","nfs"="green","nac"="lightgreen")) + 
+  theme_minimal() + theme(legend.position = "none") +
+  xlab("Slope") + ylab("Scenarios")
+
+
+# Trends over time
+
+ggplot(data.frame(x = 2000:2050), aes(x)) +
+  geom_function(fun = function(x){europe_all_signif$value[which(europe_all_signif$variable=="past")]^x/europe_all_signif$value[which(europe_all_signif$variable=="past")]^2021*100}, colour = "black", linetype=2, xlim=c(2000,2021)) +
+  geom_function(fun = function(x){europe_all_signif$value[which(europe_all_signif$variable=="bau")]^x/europe_all_signif$value[which(europe_all_signif$variable=="bau")]^2021*100}, colour = "red", linetype=1, xlim=c(2021,2050)) + 
+  geom_function(fun = function(x){europe_all_signif$value[which(europe_all_signif$variable=="ssp1")]^x/europe_all_signif$value[which(europe_all_signif$variable=="ssp1")]^2021*100}, colour = "blue", linetype=3, xlim=c(2021,2050)) + 
+  geom_function(fun = function(x){europe_all_signif$value[which(europe_all_signif$variable=="nfn")]^x/europe_all_signif$value[which(europe_all_signif$variable=="nfn")]^2021*100}, colour = "darkgreen", linetype=4, xlim=c(2021,2050)) + 
+  geom_function(fun = function(x){europe_all_signif$value[which(europe_all_signif$variable=="nfs")]^x/europe_all_signif$value[which(europe_all_signif$variable=="nfs")]^2021*100}, colour = "green", linetype=5, xlim=c(2021,2050)) + 
+  geom_function(fun = function(x){europe_all_signif$value[which(europe_all_signif$variable=="nac")]^x/europe_all_signif$value[which(europe_all_signif$variable=="nac")]^2021*100}, colour = "lightgreen",linetype=6, xlim=c(2021,2050)) + 
+  coord_trans(y='log') +
+  theme_minimal() + xlab("Year") + ylab("Abundance")
+
+# Pair-wise difference between scenarios
+
+europe_all_signif2$variable <- as.character(europe_all_signif2$variable)
+comb_var <- combn(europe_all_signif2$variable,2)
+test_diff_var_europe_all_signif <- data.frame(cbind(t(comb_var),NA))
+for(i in 1:dim(comb_var)[2]){
+  test_diff_var_europe_all_signif[i,3] <- tsum.test(mean.x=europe_all_signif2$value[which(europe_all_signif2$variable==comb_var[1,i])],   s.x=europe_all_signif2$se[which(europe_all_signif2$variable==comb_var[1,i])], n.x= overall_trend$n[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)],
+                                                    mean.y=europe_all_signif2$value[which(europe_all_signif2$variable==comb_var[2,i])],   s.y=europe_all_signif2$se[which(europe_all_signif2$variable==comb_var[2,i])], n.y= overall_trend$n[which(overall_trend$PLS=="europe" & overall_trend$pressure_removed == pressure_removed)])$p.value
+  
+}
