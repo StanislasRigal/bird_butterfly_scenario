@@ -909,7 +909,7 @@ wetland_species <- c("Agriades optilete","Boloria aquilonaris","Boloria eunomia"
                      "Coenonympha oedippus","Coenonympha tullia","Colias palaeno","Erebia disa","Erebia embla",
                      "Oeneis jutta","Pyrgus centaureae")
 
-predict_trend_all_butterfly_correct <- merge(res_gamm_butterfly_correct[which(res_gamm_butterfly_correct$species_name %in% res_gamm_butterfly$species_name %in% c(grassland_species, woodland_species, woodland_ind_species, wetland_species)),],predict_trend_all_butterfly, by=c("species_name","PLS"),all.x=TRUE)
+predict_trend_all_butterfly_correct <- merge(res_gamm_butterfly_correct[which(res_gamm_butterfly_correct$species_name %in% c(grassland_species, woodland_species, woodland_ind_species, wetland_species)),],predict_trend_all_butterfly, by=c("species_name","PLS"),all.x=TRUE)
 
 # Bound the predicted trends to avoid outliers
 
