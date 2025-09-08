@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
 # Load packages and functions
 
 source("package_publi.R")
-source("function_publi")
+source("function_publi.R")
 
 ```
 
