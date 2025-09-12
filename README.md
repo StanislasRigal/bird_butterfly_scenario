@@ -6,7 +6,7 @@ This repository provides R script and data used to common bird and butterfly res
 
 ## Prerequisites
 
-The R scripts have been implemented on R version 4.4.3. All the required R packages with their version are listed in "packages.R".
+The R scripts have been implemented on R version 4.4.3. All the required R packages with their version are listed in "packages_publi.R".
 
 ## Contents 
 
