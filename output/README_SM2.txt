@@ -4,12 +4,12 @@ Explanation of columns:
 
 Species: species scientific name
 Name: species English name
-Habitat.indicator: is the species is listed in FaBI, FoBI, GBI or WBI
+Habitat.indicator: is the species is listed in Farmland Bird Index (FaBI), Forest Bird Index (FoBI), Grassland Butterfly Index (GBI) or Woodland Butterfly Index (WBI)
 All.bird/butterfly.index:  is the species is listed in BiI or BuI
 Habitat.indicator.used: is the species included in the FaBI, FoBI, GBI or WBI computed in the article
 trend_past: additive trend (natural logarithm of the multiplicative trend) between 2000 and 2021 at the European scale
 
-##### Covariates effect on local abundance
+##### Covariates effect on local abundance (beta coefficient of the GAM)
 
 open_vs_forest: effect of open land category versus forest category on local abundance
 urban_vs_forest: effect of urban category versus forest category on local abundance
@@ -18,7 +18,7 @@ spring_rainfall: effect of rainfall amount between March and June on local abund
 landscape_diversity: effect of Shannon landscape diversity (based on CORINE classes) on local abundance
 primary_productivity: effect of drymatter production (i.e. local primary production) on local abundance
 
-##### Effect of covariate trends on species trend
+##### Effect of covariate trends on species trend (alpha coefficient of the GAM)
 
 urbanisation_increase_effect_on_trend: change in yearly slope due to increase in urbanisation
 treedensity_increase_effect_on_trend: change in yearly slope due to increase in tree density
@@ -37,4 +37,5 @@ protected_area_effect_on_trend: change in yearly slope when amount of protected 
 
 Same column names with “_sd” suffix.
 
-dev_exp: deviance explain by the model
+dev_exp: deviance explained by the model
+
