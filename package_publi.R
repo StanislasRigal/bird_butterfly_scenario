@@ -10,3 +10,4 @@ library(raster) # 3.6-31
 library(stars) # 0.6-8
 library(exactextractr) # 0.10.0
 library(BSDA) # 1.2.2
+library(ggpubr) # 0.6.3
