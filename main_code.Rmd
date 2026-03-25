@@ -174,7 +174,7 @@ lulc_eu_nfs$scenario <- "nfs"
 
 lulc_eu <- rbind(lulc_eu_2015,lulc_eu_ssp1,lulc_eu_ssp3,lulc_eu_nac,lulc_eu_nfn,lulc_eu_nfs)
 
-### apply to PLS
+### by biophysical region (PLS)
 
 lulc_pls_2015 <- exact_extract(lulc_2015,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="frac",default_value=0)
 lulc_pls_ssp1 <- exact_extract(lulc_ssp1,grid_eu_mainland_biogeo[which(!is.na(grid_eu_mainland_biogeo$PLS)),], fun="frac",default_value=0)
@@ -273,7 +273,7 @@ lulc_pls_short <- reshape2::dcast(lulc_pls, PLS + variable ~ scenario, value.var
 
 ```{r}
 
-# download before change in protected areas from https://dataverse.nl/dataset.xhtml?persistentId=doi:10.34894/TCNKPJ
+# download change in protected areas from https://dataverse.nl/dataset.xhtml?persistentId=doi:10.34894/TCNKPJ
 
 pa_2050 <- rast(raster("raw_data/FIG2_3values_expand_top5.tif"))
 
@@ -299,9 +299,9 @@ pa_pls_short <- reshape2::dcast(pa_pls_short, PLS + variable ~ scenario, value.v
 
 ```{r}
 
-# download before change in climate https://cds.climate.copernicus.eu/
+# download change in climate https://cds.climate.copernicus.eu/
 
-### Temperature
+### Temperature according to the different models
 
 mean_t_4_5_cclm <- brick("raw_data/01_mean_temperature-projections-monthly-rcp_4_5-cclm4_8_17-mpi_esm_lr-r1i1p1-grid-v1.0.nc")
 mean_t_4_5_cclm_2016 <- (mean_t_4_5_cclm$X2016.03.01 + mean_t_4_5_cclm$X2016.04.01 + mean_t_4_5_cclm$X2016.05.01 + mean_t_4_5_cclm$X2016.06.01 +
@@ -590,7 +590,7 @@ The effects on species temporal trend (alpha coefficients in the related publica
 
 ```{r}
 
-# Load results from all data
+# Load results based on all data
 
 res_gamm_bird <- read.csv("output/res_gam_bird.csv")
 
@@ -622,6 +622,7 @@ forest_species <- c("Accipiter nisus","Anthus trivialis","Bombycilla garrulus",
 "Sitta europaea","Spinus spinus","Tringa ochropus", "Turdus viscivorus")
 
 # all species
+
 pressure_EU_bird_nosignif_all_species <- res_gamm_bird_correct[which(res_gamm_bird_correct$PLS=="europe" & res_gamm_bird_correct$pressure_removed == "none"),
                                           c("year.d_impervious","year.d_tempsrping","year.d_tempsrpingvar",
                                             "year.d_precspring","year.d_shannon","year.protectedarea_perc",
@@ -644,14 +645,17 @@ pressure_EU_bird_nosignif <- pressure_EU_bird_nosignif_all_species
 pressure_EU_bird <- pressure_EU_bird_all_species
 
 # farmland species
+
 pressure_EU_bird_nosignif <- pressure_EU_bird_nosignif_all_species[which(pressure_EU_bird_nosignif_all_species$sci_name_out %in% farmland_species),]
 pressure_EU_bird <- pressure_EU_bird_all_species[which(pressure_EU_bird_all_species$sci_name_out %in% farmland_species),]
 
 # forest species
+
 pressure_EU_bird_nosignif <- pressure_EU_bird_nosignif_all_species[which(pressure_EU_bird_nosignif_all_species$sci_name_out %in% forest_species),]
 pressure_EU_bird <- pressure_EU_bird_all_species[which(pressure_EU_bird_all_species$sci_name_out %in% forest_species),]
 
 
+# plot
 
 pressure_EU_bird_long <- reshape::melt(pressure_EU_bird, id.vars=c("sci_name_out","PLS"))
 pressure_EU_bird_long <- pressure_EU_bird_long[which(!pressure_EU_bird_long$variable %in% c("(Intercept)","PLS","dev_exp","n_obs")),]
@@ -734,7 +738,7 @@ The effects on species temporal trend (alpha coefficients in the related publica
 
 ```{r}
 
-# Load results from all data
+# Load results based on all data
 
 res_gamm_butterfly <- read.csv("output/res_gam_butterfly.csv")
 
@@ -763,6 +767,7 @@ woodland_ind_species <- c("Apatura ilia","Apatura iris","Aporia crataegi","Arasc
                           "Thecla betulae")
 
 # all species
+
 pressure_EU_butterfly_nosignif_all_species <- res_gamm_butterfly_correct[which(res_gamm_butterfly_correct$PLS=="europe" & res_gamm_butterfly_correct$pressure_removed == "none"),
                                           c("year.d_impervious","year.d_tempsrping","year.d_tempsrpingvar",
                                             "year.d_precspring","year.d_shannon","year.protectedarea_perc",
@@ -785,14 +790,17 @@ pressure_EU_butterfly_nosignif <- pressure_EU_butterfly_nosignif_all_species
 pressure_EU_butterfly <- pressure_EU_butterfly_all_species
 
 # grassland species
+
 pressure_EU_butterfly_nosignif <- pressure_EU_butterfly_nosignif_all_species[which(pressure_EU_butterfly_nosignif_all_species$species_name %in% grassland_species),]
 pressure_EU_butterfly <- pressure_EU_butterfly_all_species[which(pressure_EU_butterfly_all_species$species_name %in% grassland_species),]
 
 # woodland species
+
 pressure_EU_butterfly_nosignif <- pressure_EU_butterfly_nosignif_all_species[which(pressure_EU_butterfly_nosignif_all_species$species_name %in% woodland_ind_species),]
 pressure_EU_butterfly <- pressure_EU_butterfly_all_species[which(pressure_EU_butterfly_all_species$species_name %in% woodland_ind_species),]
 
 
+# plot
 
 pressure_EU_butterfly_long <- reshape::melt(pressure_EU_butterfly, id.vars=c("species_name","PLS"))
 pressure_EU_butterfly_long <- pressure_EU_butterfly_long[which(!pressure_EU_butterfly_long$variable %in% c("(Intercept)","PLS","dev_exp","n_obs")),]
@@ -855,11 +863,11 @@ ggplot(pressure_EU_butterfly_long_d, aes(x = value_nosignif)) +
 
 ### Effect on scenarios on common species
 
-#### Birds
+#### Birds by biophysical region
 
 ```{r}
 
-# load results from all data
+# selected species used in PECBMS indicators and with good-enough model fit
 
 pecbms_species <- c("Acanthis flammea","Accipiter nisus",
 "Acrocephalus arundinaceus","Acrocephalus palustris",
@@ -949,7 +957,7 @@ pecbms_species <- c("Acanthis flammea","Accipiter nisus",
 
 predict_trend_all_bird_correct <- res_gamm_bird[which(res_gamm_bird$sci_name_out %in% pecbms_species & res_gamm_bird$dev_exp > 0.2),]
 
-# Bound the predicted trends to avoid outliers
+# Bound the predicted trends within values of observed past trends
 
 predict_trend_all_bird_correct <- ddply(predict_trend_all_bird_correct,
                                              .(PLS),.fun=function(x){
@@ -997,15 +1005,15 @@ ggplot() + geom_sf() +
 ```
 
 
-#### Butterflies
+#### Butterflies by biophysical region
 
 ```{r}
 
-# load results from all data
+# selected species with good-enough model fit
 
 predict_trend_all_butterfly_correct <- res_gamm_butterfly[which(res_gamm_butterfly$dev_exp > 0.2),]
 
-# Bound the predicted trends to avoid outliers
+# Bound the predicted trends within values of observed past trends
 
 
 predict_trend_all_butterfly_correct <- ddply(predict_trend_all_butterfly_correct,
@@ -1051,6 +1059,8 @@ ggplot() + geom_sf() +
 
 ```
 
+
+#### Birds and butterflies at the Euroepan level
 
 ```{r}
 

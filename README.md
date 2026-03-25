@@ -32,4 +32,4 @@ This work is licensed under Creative Commons Attribution 4.0 International.
 
 ## Contact 
 
-Please contact the corresponding author at stanislas.rigal[at]inrae.fr.
+Please contact the corresponding author at stanislas.rigal[at]fondationbiodiversite.fr.
